@@ -1,0 +1,49 @@
+## Build & Output
+[Bb]in/
+[Oo]bj/
+out/
+[Tt]est[Rr]esults/
+*.trx
+
+## Visual Studio & IDEs
+.vs/
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Local SQLite Database
+*.db
+*.db-shm
+*.db-wal
+!*.schema.sql
+
+## Local Application Data & Temp Storage
+**/App_Data/ai-drafts/*
+!**/App_Data/ai-drafts/.gitkeep
+
+## Uploaded Files (Legacy / Runtime)
+src/RecipeCard.Web/wwwroot/uploads/**
+!src/RecipeCard.Web/wwwroot/uploads/
+!src/RecipeCard.Web/wwwroot/uploads/.gitkeep
+!src/RecipeCard.Web/wwwroot/uploads/steps/
+!src/RecipeCard.Web/wwwroot/uploads/steps/.gitkeep
+
+## Sensitive Config & Secrets
+**/appsettings.Development.json
+appsettings*.local.json
+appsettings*.Local.json
+secrets.json
+.env
+.env.*
+
+## OS Generated
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
