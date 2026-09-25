@@ -26,20 +26,32 @@ Tài liệu này cung cấp hướng dẫn chi tiết về mặt kỹ thuật, k
 +-----------------------------------------------------------------------------------+
 |                             ASP.NET CORE WEB APPLICATION                          |
 |                                                                                   |
-|  +---------------------------+  +-----------------------------------------------+ |
-|  | IImageValidator           |  | IAiImagePromptBuilder                         | |
-|  | - Magic bytes check       |  | - Ghép tên công thức, bước, chỉ dẫn, brief    | |
-|  | - Max 5MB (.jpg/.png/.webp)|  | - Bổ sung phong cách đồ uống Phê La           | |
-|  | - Anti-path traversal     |  +-----------------------------------------------+ |
-|  +---------------------------+                         |                          |
-|               |                                        v                          |
-|               |               +-------------------------------------------------+ |
-|               |               | IAiImageGenerator                               | |
-|               |               | (CloudflareWorkersAiImageGenerator)             | |
-|               |               | - REST API v4, Bearer token                     | |
-|               |               | - Model: @cf/black-forest-labs/flux-1-schnell   | |
-|               |               +------------------------+------------------------+ |
-|               |                                        |                          |
+  +---------------------------+  +-----------------------------------------------+
+  | IImageValidator           |  | AiImagePromptBuilder (Tạo prompt Việt)        |
+  | - Magic bytes check       |  | - Ngữ cảnh công thức, bước, chỉ dẫn, brief    |
+  | - Max 5MB (.jpg/.png/.webp)|  +-----------------------+-----------------------+
+  | - Anti-path traversal     |                          |
+  +---------------------------+                          v
+               |                 +-----------------------------------------------+
+               |                 | IAiPromptTranslator                           |
+               |                 | (CloudflareWorkersAiPromptTranslator)         |
+               |                 | - Model: @cf/meta/m2m100-1.2b                 |
+               |                 | - Dịch prompt tiếng Việt sang tiếng Anh       |
+               |                 +-----------------------+-----------------------+
+               |                                         |
+               |                                         v
+               |                 +-----------------------------------------------+
+               |                 | AiImagePromptBuilder (Ghép phong cách ảnh)    |
+               |                 | - Bổ sung English style guideline cho FLUX    |
+               |                 +-----------------------+-----------------------+
+               |                                         |
+               |                                         v
+               |                 +-----------------------------------------------+
+               |                 | IAiImageGenerator                             |
+               |                 | (CloudflareWorkersAiImageGenerator)           |
+               |                 | - REST API v4, Bearer token                   |
+               |                 | - Model: @cf/black-forest-labs/flux-1-schnell |
+               |                 +-----------------------+-----------------------+
 |               |                                        v                          |
 |               |               +-------------------------------------------------+ |
 |               |               | IAiDraftFileStore & AiDraftCleanupHostedService | |
@@ -90,7 +102,8 @@ Cấu hình được quản lý qua `appsettings.json`, `appsettings.Development
   "Cloudflare": {
     "AccountId": "your-cloudflare-account-id",
     "ApiToken": "your-cloudflare-api-token",
-    "Model": "@cf/black-forest-labs/flux-1-schnell"
+    "Model": "@cf/black-forest-labs/flux-1-schnell",
+    "TranslationModel": "@cf/meta/m2m100-1.2b"
   },
   "QuestPdf": {
     "LicenseType": "Community"
@@ -105,7 +118,7 @@ Cấu hình được quản lý qua `appsettings.json`, `appsettings.Development
 - `Cloudflare__AccountId`
 - `Cloudflare__ApiToken`
 - `Cloudflare__Model` (Mặc định: `@cf/black-forest-labs/flux-1-schnell`)
-
+- `Cloudflare__TranslationModel` (Mặc định: `@cf/meta/m2m100-1.2b`)
 ### 2.2 Cơ chế Fallback thông minh
 - **Dịch vụ lưu trữ**: Nếu `Cloudinary:CloudName` để trống hoặc không tồn tại trong cấu hình, `Program.cs` tự động giải quyết `IImageStorageService` thành `ImageStorageService` (lưu trữ tệp vào thư mục `wwwroot/uploads`). Điều này đảm bảo dự án có thể chạy và phát triển bình thường offline mà không bắt buộc có tài khoản Cloudinary.
 - **Dịch vụ AI**: Nếu `Cloudflare:AccountId` hoặc `Cloudflare:ApiToken` bị thiếu, khi người dùng gọi tác vụ tạo ảnh, hệ thống thông báo lỗi cấu hình một cách tường minh mà không làm ảnh hưởng đến các thao tác soạn công thức thủ công.
@@ -159,15 +172,17 @@ Khi lưu trữ tài nguyên số:
 - **Payload**: `{"prompt": "..."}`
 - **Kết quả trả về**: Dữ liệu nhị phân ảnh (image bytes) kèm header `image/jpeg` hoặc `image/png`.
 
-### 4.2 Lớp chuẩn hóa Prompt: `AiImagePromptBuilder`
-Để hình ảnh phù hợp với nhận diện thương hiệu Phê La và tính chất R&D:
-- Đầu vào: Tên công thức (`Recipe.Name`), thứ tự bước (`SortOrder`), nội dung hướng dẫn (`Instruction`), ghi chú người dùng (`userBrief`).
-- Thêm phong cách nghệ thuật: `Commercial beverage photography, professional barista tutorial aesthetic, clean studio lighting, realistic, high detail, Vietnamese tea and coffee style`.
-- Thêm ràng buộc loại trừ: `No watermarks, no distorted objects, no artificial plastic look, no text overlays`.
+### 4.2 Lớp chuẩn hóa và dịch Prompt: `AiImagePromptBuilder` & `IAiPromptTranslator`
+Để mô hình FLUX hiểu chính xác nội dung công thức tiếng Việt nhưng vẫn đảm bảo phong cách thương hiệu R&D:
+1. **Tách nguồn tiếng Việt**: `AiImagePromptBuilder.BuildVietnameseSourcePrompt` tổng hợp tên công thức (`Recipe.Name`), thứ tự bước (`SortOrder`), nội dung hướng dẫn (`Instruction`), và ghi chú trực quan tùy chọn (`userBrief` giới hạn 500 ký tự) hoàn toàn bằng tiếng Việt.
+2. **Dịch tự động qua Cloudflare**: `IAiPromptTranslator` (`CloudflareWorkersAiPromptTranslator`) gọi API mô hình `@cf/meta/m2m100-1.2b` (`POST .../run/@cf/meta/m2m100-1.2b`) với `{ text, source_lang: "vi", target_lang: "en" }` để chuyển ngữ cảnh sang tiếng Anh.
+3. **Ghép phong cách nghệ thuật cố định**: `AiImagePromptBuilder.BuildFinalImagePrompt` nhận prompt tiếng Anh đã dịch và ghép thêm chỉ dẫn nhiếp ảnh thương mại chuẩn:
+   - Phong cách: `Commercial beverage photography, professional barista tutorial aesthetic, clean studio lighting, realistic, high detail, Vietnamese tea and coffee style`.
+   - Loại trừ: `No watermarks, no distorted objects, no artificial plastic look, no text overlays`.
+4. **Bảo vệ an toàn**: Nếu dịch thất bại (lỗi mạng, quota, schema không khớp), hệ thống hủy ngay quy trình tạo ảnh và hiển thị thông báo lỗi rõ ràng, tuyệt đối không dùng prompt tiếng Việt làm fallback cho FLUX. Bản nháp lưu trữ chính xác `PromptSnapshot` tiếng Anh cuối cùng gửi sang FLUX.
 
 ### 4.3 Quản lý ứng viên tạm thời (Candidate Lifecycle)
 Khác với việc tải trực tiếp vào kho dữ liệu chính, ảnh AI trải qua chu trình ứng viên:
-
 ```
 [Bấm "Tạo ảnh AI"] 
         │
@@ -292,12 +307,13 @@ Toàn bộ hệ thống được bảo vệ bởi bộ kiểm thử tự động
 ```bash
 dotnet test
 ```
-*Kết quả yêu cầu*: **50 passed, 0 failed, 0 skipped**.
+*Kết quả yêu cầu*: **75 passed, 0 failed, 0 skipped**.
 
 ### 7.2 Các kịch bản kiểm thử trọng yếu
 1. **Kiểm tra Mock Cloudinary & Fallback**:
    - `CloudinaryImageStorageServiceTests`: Kiểm thử xác thực cấu hình `CloudinaryOptions`, upload tệp, xóa tệp, kích hoạt đền bù.
 2. **Kiểm tra Mock Cloudflare Workers AI**:
+   - `CloudflareWorkersAiPromptTranslatorTests`: Kiểm thử dịch prompt Việt -> Anh với các envelope `result.translated_text` / `result[0].translated_text`, xử lý lỗi API Cloudflare, lỗi mạng và che giấu token an toàn.
    - `CloudflareWorkersAiImageGeneratorTests`: Kiểm thử tạo ảnh thành công, xử lý lỗi mạng, xử lý lỗi xác thực token, kiểm tra timeout 60s.
 3. **Kiểm thử chu trình ứng viên AI**:
    - Tạo nháp (`OnPostGenerateAiImageAsync`) -> Xem trước -> Tạo lại (`OnPostRegenerateAiImageAsync`) -> Chấp nhận (`OnPostAcceptAiImageAsync`) -> Kiểm tra chuyển đổi thành `MediaAsset` với nguồn `AiIllustration`.
@@ -316,7 +332,7 @@ dotnet test
 | Tình huống sự cố | Nguyên nhân có thể | Hướng xử lý |
 | :--- | :--- | :--- |
 | **Không tải được ảnh lên Cloudinary** | Thiếu thông tin `CloudName`, `ApiKey`, `ApiSecret` hoặc sai khóa bí mật | Kiểm tra cấu hình trong `appsettings.json` hoặc biến môi trường; nếu đang chạy local offline, xóa `Cloudinary:CloudName` để hệ thống tự động fallback về lưu trữ local. |
+| **Lỗi khi dịch prompt AI ("Dịch mô tả cho AI thất bại...")** | Lỗi kết nối Cloudflare Workers AI, tài khoản hết quota hoặc model dịch gặp sự cố | Kiểm tra `ApiToken` và `AccountId`, kiểm tra trạng thái dịch vụ Workers AI của Cloudflare. |
 | **Lỗi khi gọi tạo ảnh AI ("Dịch vụ AI không thể xử lý...")** | `AccountId` hoặc `ApiToken` Cloudflare không chính xác, hoặc tài khoản Cloudflare bị giới hạn hạn mức (Rate limit/Quota) | Kiểm tra `ApiToken` phải có quyền `Workers AI Read`. Xem chi tiết thông báo lỗi trong log ứng dụng. |
-| **Ảnh nháp AI biến mất khi bấm Chấp nhận** | Đã quá thời hạn 30 phút (`ExpiresUtc`) hoặc tệp tạm trong `App_Data/ai-drafts` bị xóa | Tạo lại ảnh ứng viên mới và bấm Chấp nhận trong vòng 30 phút. |
 | **Không thể xóa ảnh trong Thư viện Media** | Ảnh đang được liên kết trong ít nhất một bước công thức | Kiểm tra danh sách công thức đang sử dụng hiển thị trên thẻ ảnh; xóa hoặc thay thế ảnh trong các bước công thức đó trước khi xóa khỏi thư viện. |
 | **Thẻ ảnh hiển thị trạng thái "Lỗi xóa"** | Mạng gián đoạn trong lúc gọi Cloudinary Destroy API | Đảm bảo kết nối Internet ổn định và bấm nút **"Thử lại xóa"** trên thẻ ảnh để hoàn tất việc dọn dẹp. |

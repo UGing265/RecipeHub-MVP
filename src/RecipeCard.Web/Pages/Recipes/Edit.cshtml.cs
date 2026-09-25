@@ -345,10 +345,11 @@ public class EditModel(
             return RedirectToPage(new { id });
         }
 
+        var ct = HttpContext?.RequestAborted ?? default;
         string prompt;
         try
         {
-            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief, ct);
         }
         catch (Exception ex)
         {
@@ -359,7 +360,7 @@ public class EditModel(
         GeneratedImage generated;
         try
         {
-            generated = await _aiGenerator.GenerateAsync(prompt);
+            generated = await _aiGenerator.GenerateAsync(prompt, ct);
         }
         catch (Exception ex)
         {
@@ -452,10 +453,11 @@ public class EditModel(
         }
 
         var step = draft.RecipeStep;
+        var ct = HttpContext?.RequestAborted ?? default;
         string prompt;
         try
         {
-            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief, ct);
         }
         catch (Exception ex)
         {
@@ -469,7 +471,7 @@ public class EditModel(
         GeneratedImage generated;
         try
         {
-            generated = await _aiGenerator.GenerateAsync(prompt);
+            generated = await _aiGenerator.GenerateAsync(prompt, ct);
         }
         catch (Exception ex)
         {
