@@ -7,6 +7,7 @@ public class CloudflareOptions
     public string AccountId { get; set; } = string.Empty;
     public string ApiToken { get; set; } = string.Empty;
     public string Model { get; set; } = "@cf/black-forest-labs/flux-1-schnell";
+    public string TranslationModel { get; set; } = "@cf/meta/m2m100-1.2b";
 
     public void Validate()
     {
