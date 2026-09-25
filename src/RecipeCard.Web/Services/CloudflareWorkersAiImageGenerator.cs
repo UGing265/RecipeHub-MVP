@@ -83,11 +83,14 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             throw new InvalidOperationException(userFriendlyError);
         }
 
-        var imageBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (imageBytes.Length == 0)
+        var contentType = response.Content.Headers.ContentType?.MediaType;
+        var rawBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+        if (rawBytes.Length == 0)
         {
             throw new InvalidOperationException("Cloudflare AI không trả về dữ liệu ảnh nào.");
         }
+
+        var imageBytes = ExtractImageBytes(rawBytes, contentType);
 
         // Validate image bytes and extract mime type
         ValidatedImageInfo info;
@@ -105,5 +108,86 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             MimeType: info.MimeType,
             Model: model
         );
+    }
+
+    private static byte[] ExtractImageBytes(byte[] rawBytes, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType) &&
+            contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return rawBytes;
+        }
+
+        bool isJsonContentType = !string.IsNullOrWhiteSpace(contentType) &&
+            (contentType.Equals("application/json", StringComparison.OrdinalIgnoreCase) ||
+             contentType.EndsWith("+json", StringComparison.OrdinalIgnoreCase));
+
+        int firstNonWhitespace = -1;
+        for (int i = 0; i < rawBytes.Length; i++)
+        {
+            if (!char.IsWhiteSpace((char)rawBytes[i]))
+            {
+                firstNonWhitespace = i;
+                break;
+            }
+        }
+
+        bool looksLikeJson = firstNonWhitespace >= 0 && rawBytes[firstNonWhitespace] == (byte)'{';
+
+        if (isJsonContentType || looksLikeJson)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(rawBytes);
+                string? base64String = null;
+
+                if (doc.RootElement.TryGetProperty("result", out var resultEl))
+                {
+                    if (resultEl.ValueKind == JsonValueKind.Object && resultEl.TryGetProperty("image", out var imageEl))
+                    {
+                        base64String = imageEl.GetString();
+                    }
+                    else if (resultEl.ValueKind == JsonValueKind.String)
+                    {
+                        base64String = resultEl.GetString();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(base64String) && doc.RootElement.TryGetProperty("image", out var directImageEl))
+                {
+                    base64String = directImageEl.GetString();
+                }
+
+                if (!string.IsNullOrWhiteSpace(base64String))
+                {
+                    var commaIdx = base64String.IndexOf(',');
+                    if (commaIdx >= 0 && base64String.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        base64String = base64String[(commaIdx + 1)..];
+                    }
+
+                    return Convert.FromBase64String(base64String.Trim());
+                }
+
+                if (doc.RootElement.TryGetProperty("errors", out var errorsEl) && errorsEl.GetArrayLength() > 0)
+                {
+                    var errorMsg = errorsEl[0].GetProperty("message").GetString();
+                    if (!string.IsNullOrWhiteSpace(errorMsg))
+                    {
+                        throw new InvalidOperationException($"Lỗi từ Cloudflare AI: {errorMsg}");
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Fall back to treating rawBytes as binary image data
+            }
+        }
+
+        return rawBytes;
     }
 }
