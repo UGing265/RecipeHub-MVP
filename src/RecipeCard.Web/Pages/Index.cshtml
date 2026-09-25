@@ -1,0 +1,58 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Trang chủ - R&D Recipe Hub";
+}
+
+<div class="py-4 text-center">
+    <div class="d-inline-flex align-items-center gap-2 px-3 py-1 mb-3 rounded-pill bg-light border">
+        <span class="mobbin-squircle" style="width: 18px; height: 18px; font-size: 10px;">★</span>
+        <span class="text-uppercase fw-semibold" style="font-size: 11px; letter-spacing: 0.06em; color: var(--color-ink-soft);">Tiêu chuẩn SOP Phê La</span>
+    </div>
+    <h1 class="display-6 fw-bold mb-2">R&D Recipe Hub</h1>
+    <p class="text-muted mx-auto" style="max-width: 600px; font-size: 15.5px; line-height: 1.45;">
+        Hệ thống chuẩn hóa công thức thử nghiệm và quy trình pha chế. Tự động kiểm tra tính sẵn sàng và xuất thẻ công thức chuẩn vận hành.
+    </p>
+</div>
+
+<div class="row g-4 justify-content-center mt-1">
+    <div class="col-md-6 col-xl-5">
+        <div class="mobbin-card h-100 d-flex flex-column justify-content-between">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge-pill-soft">Phần 01</span>
+                    <span class="text-muted text-uppercase fw-semibold" style="font-size: 11px;">DỮ LIỆU GỐC</span>
+                </div>
+                <h3 class="fw-bold mb-2">Danh mục nguyên liệu</h3>
+                <p class="text-muted" style="font-size: 14.5px;">
+                    Quản lý danh sách nguyên liệu dùng chung và đơn vị tính (g, ml, lát, miếng...). Tự động bảo vệ và ngăn chặn xóa nguyên liệu đang có công thức sử dụng.
+                </p>
+            </div>
+            <div class="pt-4 mt-auto border-top" style="border-color: var(--color-hairline-soft) !important;">
+                <a asp-page="/Ingredients/Index" class="btn-mobbin-outline w-100">
+                    Quản lý nguyên liệu &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-xl-5">
+        <div class="mobbin-card h-100 d-flex flex-column justify-content-between">
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="badge-pill-dark">Phần 02</span>
+                    <span class="text-muted text-uppercase fw-semibold" style="font-size: 11px;">QUY TRÌNH & THẺ</span>
+                </div>
+                <h3 class="fw-bold mb-2">Soạn & Xuất công thức</h3>
+                <p class="text-muted" style="font-size: 14.5px;">
+                    Tạo công thức, định lượng nguyên liệu, thêm quy trình từng bước kèm ảnh chụp thật, xem trước thẻ chuẩn kích thước và xuất file PDF lưu kho SOP.
+                </p>
+            </div>
+            <div class="pt-4 mt-auto border-top" style="border-color: var(--color-hairline-soft) !important;">
+                <a asp-page="/Recipes/Index" class="btn-mobbin-primary w-100">
+                    Danh sách công thức &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

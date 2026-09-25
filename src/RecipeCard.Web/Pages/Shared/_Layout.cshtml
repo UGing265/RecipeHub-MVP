@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - R&D Recipe Hub</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar Navigation (Nguyên liệu & Công thức) -->
+        <div id="sidebarBackdrop" class="app-sidebar-backdrop"></div>
+        <aside id="appSidebar" class="app-sidebar">
+            <div class="app-sidebar-header">
+                <a class="mobbin-brand" asp-area="" asp-page="/Index">
+                    <span class="mobbin-squircle">R</span>
+                    <span>Recipe Hub</span>
+                </a>
+            </div>
+
+            <div class="app-sidebar-body">
+                <div class="app-sidebar-section-title">Tổng quan</div>
+                <a class="app-nav-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")" 
+                   asp-area="" asp-page="/Index">
+                    <span>Trang chủ</span>
+                </a>
+
+                <div class="app-sidebar-section-title">Danh mục quản lý</div>
+                <a class="app-nav-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Ingredients") == true ? "active" : "")" 
+                   asp-area="" asp-page="/Ingredients/Index">
+                    <span>Nguyên liệu</span>
+                    <span class="badge-pill-soft">Catalog</span>
+                </a>
+
+                <a class="app-nav-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Recipes") == true ? "active" : "")" 
+                   asp-area="" asp-page="/Recipes/Index">
+                    <span>Công thức</span>
+                    <span class="badge-pill-soft">SOP</span>
+                </a>
+
+                <a class="app-nav-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Media") == true ? "active" : "")" 
+                   asp-area="" asp-page="/Media/Index">
+                    <span>Thư viện ảnh</span>
+                    <span class="badge-pill-soft">Media</span>
+                </a>
+                <div class="mt-4 pt-3 border-top" style="border-color: var(--color-hairline-soft) !important;">
+                    <a asp-page="/Recipes/Create" class="btn-mobbin-primary w-100">
+                        <span>+ Soạn công thức</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="app-sidebar-footer">
+                <div class="text-faint" style="font-size: 11.5px; line-height: 1.4;">
+                    <div class="fw-bold text-muted">R&D Recipe Hub</div>
+                    <div>Thẻ công thức & Vận hành nội bộ</div>
+                    <div>&copy; 2026 Phê La Standard</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="app-main">
+            <header class="app-topbar d-lg-none">
+                <button id="sidebarToggle" type="button" class="btn-mobbin-outline btn-mobbin-sm" aria-label="Mở menu">
+                    ☰ Menu
+                </button>
+                <a class="mobbin-brand" asp-area="" asp-page="/Index">
+                    <span class="mobbin-squircle">R</span>
+                    <span>Recipe Hub</span>
+                </a>
+                <a asp-page="/Recipes/Create" class="btn-mobbin-primary btn-mobbin-sm">+ Thêm</a>
+            </header>
+
+            <main role="main" class="app-content">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mobile sidebar toggle handler
+        const toggleBtn = document.getElementById('sidebarToggle');
+        const sidebar = document.getElementById('appSidebar');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        if (toggleBtn && sidebar && backdrop) {
+            toggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('show');
+                backdrop.classList.toggle('show');
+            });
+
+            backdrop.addEventListener('click', () => {
+                sidebar.classList.remove('show');
+                backdrop.classList.remove('show');
+            });
+        }
+    </script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

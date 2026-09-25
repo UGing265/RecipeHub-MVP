@@ -1,0 +1,545 @@
+/* ==========================================================================
+   Mobbin Design System (doc/DESIGN.md implementation)
+   ========================================================================== */
+
+:root {
+  /* Colors */
+  --color-primary: #141414;
+  --color-on-primary: #ffffff;
+  --color-ink: #141414;
+  --color-ink-soft: #262626;
+  --color-text-muted: #707070;
+  --color-text-faint: #adadad;
+  --color-canvas: #ffffff;
+  --color-canvas-soft: #f3f3f3;
+  --color-field: #f0f0f0;
+  --color-hairline-soft: #f0f0f0;
+  --color-hairline: #e0e0e0;
+  --color-accent: #0066ff;
+
+  /* Typography Fallback Stack */
+  --font-family-base: "Saans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Radii */
+  --radius-none: 0px;
+  --radius-sm: 16px;
+  --radius-md: 24px;
+  --radius-full: 9999px;
+
+  /* Spacings */
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --space-section: 80px;
+
+  /* Layout */
+  --sidebar-width: 260px;
+}
+
+/* Base resets & typography */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-family-base);
+  font-weight: 456;
+  line-height: 1.38;
+  color: var(--color-ink);
+  background-color: var(--color-canvas);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Headings with Saans 652 variable weight */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: var(--font-family-base);
+  font-weight: 652;
+  color: var(--color-ink);
+  letter-spacing: -0.01em;
+}
+
+h1, .h1 { font-size: 36px; line-height: 1.1; }
+h2, .h2 { font-size: 28px; line-height: 1.15; }
+h3, .h3 { font-size: 22px; line-height: 1.2; }
+h4, .h4 { font-size: 18px; line-height: 1.25; }
+h5, .h5 { font-size: 15px; line-height: 1.3; }
+
+p, .body-text {
+  font-size: 15px;
+  font-weight: 456;
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+.text-faint {
+  color: var(--color-text-faint) !important;
+}
+
+/* ==========================================================================
+   App Shell Layout (with Sidebar Navigation for Nguyên liệu & Công thức)
+   Pattern: ex-app-shell-row from doc/DESIGN.md
+   ========================================================================== */
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--color-canvas);
+}
+
+.app-sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  background-color: var(--color-canvas);
+  border-right: 1px solid var(--color-hairline);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 1020;
+}
+
+.app-sidebar-header {
+  padding: var(--space-lg) var(--space-md);
+  border-bottom: 1px solid var(--color-hairline-soft);
+}
+
+.app-sidebar-body {
+  padding: var(--space-md);
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.app-sidebar-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: var(--space-xs) var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+/* ex-app-shell-row: 16px radius, 8px 16px padding, active indicator */
+.app-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+}
+
+.app-nav-item:hover {
+  background-color: var(--color-canvas-soft);
+  color: var(--color-ink);
+}
+
+.app-nav-item.active {
+  background-color: var(--color-canvas-soft);
+  color: var(--color-ink);
+  font-weight: 652;
+}
+
+.app-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+}
+
+.app-sidebar-footer {
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-hairline-soft);
+}
+
+.app-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--color-canvas);
+}
+
+.app-topbar {
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--color-hairline-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-canvas);
+}
+
+.app-content {
+  flex-grow: 1;
+  padding: var(--space-xl) var(--space-xxl);
+}
+
+@media (max-width: 991.98px) {
+  .app-sidebar {
+    position: fixed;
+    left: -260px;
+    transition: left 0.25s ease;
+  }
+  .app-sidebar.show {
+    left: 0;
+  }
+  .app-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 1010;
+  }
+  .app-sidebar-backdrop.show {
+    display: block;
+  }
+  .app-content {
+    padding: var(--space-md);
+  }
+}
+
+/* Brand Lockup & Squircle Icon */
+.mobbin-brand {
+  font-weight: 652;
+  font-size: 16px;
+  color: var(--color-ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobbin-brand:hover {
+  color: var(--color-ink);
+}
+
+.mobbin-squircle {
+  width: 26px;
+  height: 26px;
+  background-color: var(--color-primary);
+  border-radius: 30%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-on-primary);
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Mobbin Button Primitives (All Stadium Pills, Zero Shadow)
+   ========================================================================== */
+
+.btn-mobbin-primary {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  padding: 8px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.15s ease, transform 0.08s ease;
+}
+
+.btn-mobbin-primary:hover {
+  opacity: 0.9;
+  color: var(--color-on-primary);
+}
+
+.btn-mobbin-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-mobbin-outline {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  padding: 8px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-mobbin-outline:hover {
+  background-color: var(--color-canvas-soft);
+  color: var(--color-ink);
+  border-color: var(--color-ink);
+}
+
+.btn-mobbin-outline:active {
+  transform: scale(0.98);
+}
+
+.btn-mobbin-soft {
+  background-color: var(--color-canvas-soft);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-mobbin-soft:hover {
+  background-color: var(--color-field);
+  color: var(--color-ink);
+  border-color: var(--color-hairline);
+}
+
+.btn-mobbin-sm {
+  padding: 5px 12px;
+  font-size: 12.5px;
+}
+
+/* Neutralized destructive action (monochrome hairline treatment) */
+.btn-mobbin-danger {
+  background-color: var(--color-canvas);
+  color: var(--color-ink-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-mobbin-danger:hover {
+  background-color: var(--color-canvas-soft);
+  border-color: var(--color-ink);
+  color: var(--color-ink);
+}
+
+/* ==========================================================================
+   Form Controls (16px radius, field background, zero box-shadow)
+   ========================================================================== */
+
+.form-control, .form-select {
+  background-color: var(--color-field) !important;
+  color: var(--color-ink) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 10px 16px !important;
+  font-size: 14.5px !important;
+  font-weight: 456 !important;
+  transition: border-color 0.15s ease, background-color 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--color-canvas) !important;
+  border-color: var(--color-ink) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Monochrome high-contrast validation feedback */
+.form-control.is-invalid, .was-validated .form-control:invalid {
+  border-color: var(--color-ink) !important;
+  background-color: var(--color-canvas-soft) !important;
+}
+
+.text-danger, .field-validation-error {
+  color: var(--color-ink) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  margin-top: 4px;
+  display: block;
+}
+
+.text-danger::before, .field-validation-error::before {
+  content: "— ";
+}
+
+.form-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+/* ==========================================================================
+   Surfaces & Containers (24px radius, hairline borders, zero shadow)
+   ========================================================================== */
+
+.mobbin-card {
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  position: relative;
+}
+
+.mobbin-card-soft {
+  background-color: var(--color-canvas-soft);
+  border: 1px solid var(--color-hairline-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.mobbin-card-header {
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-hairline-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Data Table with Hairline grid */
+.mobbin-table-container {
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.mobbin-table {
+  width: 100%;
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mobbin-table th {
+  background-color: var(--color-canvas-soft);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--color-hairline);
+  border-top: none;
+}
+
+.mobbin-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-hairline-soft);
+  color: var(--color-ink);
+  font-size: 14.5px;
+  vertical-align: middle;
+}
+
+.mobbin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mobbin-table tbody tr:hover {
+  background-color: var(--color-canvas-soft);
+}
+
+/* Badges: stadium-pill */
+.badge-pill-soft {
+  background-color: var(--color-canvas-soft);
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.badge-pill-dark {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Media tile */
+.step-media-tile {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-hairline);
+  background-color: var(--color-field);
+  object-fit: cover;
+}
+
+/* Recipe sheet card: strictly zero shadow */
+.recipe-sheet-card {
+  background: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+}
+
+.step-number-pill {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Neutral notification banner (monochrome tint) */
+.mobbin-banner {
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-canvas-soft);
+  border: 1px solid var(--color-hairline);
+  color: var(--color-ink);
+  font-size: 13.5px;
+}
