@@ -1,0 +1,163 @@
+@page
+@model RecipeCard.Web.Pages.Media.IndexModel
+@{
+    ViewData["Title"] = "Thư viện ảnh — Recipe Hub";
+}
+
+<div class="mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <div class="text-faint text-uppercase fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Tài nguyên số</div>
+            <h1 class="h3 fw-bold mb-1" style="color: var(--color-ink);">Thư viện ảnh</h1>
+            <p class="text-muted mb-0" style="font-size: 14px;">Quản lý kho ảnh chụp thực tế và hình minh họa AI dùng chung cho các công thức R&amp;D.</p>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="mobbin-card p-3 mb-4" style="background: var(--color-canvas-soft); border-color: var(--color-ink);">
+        <div class="d-flex align-items-center text-danger fw-semibold" style="color: var(--color-ink) !important; font-size: 14px;">
+            <span>— @Model.ErrorMessage</span>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="mobbin-card p-3 mb-4" style="background: var(--color-canvas-soft); border-color: var(--color-hairline);">
+        <div class="d-flex align-items-center fw-semibold" style="color: var(--color-ink); font-size: 14px;">
+            <span>— @Model.SuccessMessage</span>
+        </div>
+    </div>
+}
+
+<!-- Upload Box -->
+<div class="mobbin-card p-4 mb-4">
+    <h2 class="h6 fw-bold mb-3" style="color: var(--color-ink);">Tải ảnh mới vào thư viện</h2>
+    <form method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="d-flex align-items-center flex-wrap gap-3">
+        <div class="flex-grow-1" style="min-width: 260px;">
+            <input type="file" name="file" accept=".jpg,.jpeg,.png,.webp" class="form-control" required />
+            <div class="text-muted mt-1" style="font-size: 12px;">Định dạng hỗ trợ: .jpg, .png, .webp. Dung lượng tối đa: 5MB.</div>
+        </div>
+        <button type="submit" class="btn-mobbin-primary">
+            <span>Tải lên thư viện</span>
+        </button>
+    </form>
+</div>
+
+<!-- Filters -->
+<div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+    <a asp-page="/Media/Index" asp-route-filter="all" 
+       class="@(Model.CurrentFilter == "all" ? "btn-mobbin-primary" : "btn-mobbin-outline") btn-mobbin-sm">
+        <span>Tất cả (@Model.TotalCount)</span>
+    </a>
+    <a asp-page="/Media/Index" asp-route-filter="real" 
+       class="@(Model.CurrentFilter == "real" ? "btn-mobbin-primary" : "btn-mobbin-outline") btn-mobbin-sm">
+        <span>Ảnh chụp (@Model.RealCount)</span>
+    </a>
+    <a asp-page="/Media/Index" asp-route-filter="ai" 
+       class="@(Model.CurrentFilter == "ai" ? "btn-mobbin-primary" : "btn-mobbin-outline") btn-mobbin-sm">
+        <span>Minh họa AI (@Model.AiCount)</span>
+    </a>
+    @if (Model.FailedCount > 0)
+    {
+        <a asp-page="/Media/Index" asp-route-filter="failed" 
+           class="@(Model.CurrentFilter == "failed" ? "btn-mobbin-primary" : "btn-mobbin-outline") btn-mobbin-sm">
+            <span>Lỗi xóa (@Model.FailedCount)</span>
+        </a>
+    }
+</div>
+
+<!-- Media Gallery Grid -->
+@if (Model.MediaItems.Count == 0)
+{
+    <div class="mobbin-card p-5 text-center text-muted">
+        <div class="fw-semibold mb-1">Chưa có hình ảnh nào trong danh mục này</div>
+        <div style="font-size: 13px;">Hãy tải lên ảnh mới ở phía trên hoặc gắn ảnh vào các bước công thức.</div>
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var item in Model.MediaItems)
+        {
+            <div class="col">
+                <div class="mobbin-card h-100 d-flex flex-column p-3">
+                    <div class="position-relative mb-3 rounded-3 overflow-hidden bg-light" style="height: 180px; border-radius: var(--radius-sm) !important;">
+                        <img src="@item.DeliveryUrl" alt="@(item.OriginalFileName ?? "Media asset")" 
+                             class="w-100 h-100" style="object-fit: cover;" 
+                             loading="lazy" />
+                        <div class="position-absolute top-0 start-0 m-2">
+                            @if (item.SourceType == RecipeCard.Web.Models.MediaSourceType.AiIllustration)
+                            {
+                                <span class="badge-pill-dark">AI minh họa</span>
+                            }
+                            else
+                            {
+                                <span class="badge-pill-soft">Ảnh chụp</span>
+                            }
+                        </div>
+                        @if (item.State == RecipeCard.Web.Models.MediaAssetState.DeleteFailed)
+                        {
+                            <div class="position-absolute top-0 end-0 m-2">
+                                <span class="badge-pill-dark" style="border: 1px solid var(--color-ink);">Lỗi xóa</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="flex-grow-1">
+                        <div class="fw-bold text-truncate mb-1" title="@item.OriginalFileName" style="font-size: 14px; color: var(--color-ink);">
+                            @(string.IsNullOrWhiteSpace(item.OriginalFileName) ? $"Asset #{item.Id}" : item.OriginalFileName)
+                        </div>
+                        <div class="d-flex justify-content-between text-muted mb-2" style="font-size: 12px;">
+                            <span>@item.FormattedSize</span>
+                            <span>@item.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="text-muted" style="font-size: 12px;">
+                            @if (item.ReferenceCount > 0)
+                            {
+                                <span class="fw-semibold" style="color: var(--color-ink);">Đang dùng:</span>
+                                <span>@(string.Join(", ", item.ReferencingRecipeNames.Take(2)))@(item.ReferencingRecipeNames.Count > 2 ? "..." : "")</span>
+                                <span class="badge-pill-soft ms-1">@item.ReferenceCount bước</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Chưa liên kết công thức nào</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center" style="border-color: var(--color-hairline-soft) !important;">
+                        <a href="@item.DeliveryUrl" target="_blank" rel="noopener noreferrer" class="btn-mobbin-outline btn-mobbin-sm">
+                            <span>Xem ảnh gốc</span>
+                        </a>
+
+                        @if (item.State == RecipeCard.Web.Models.MediaAssetState.DeleteFailed)
+                        {
+                            <form method="post" asp-page-handler="RetryDelete" asp-route-id="@item.Id" onsubmit="return confirm('Thử lại thao tác xóa ảnh này?');">
+                                <button type="submit" class="btn-mobbin-primary btn-mobbin-sm">
+                                    <span>Thử lại xóa</span>
+                                </button>
+                            </form>
+                        }
+                        else if (item.ReferenceCount == 0)
+                        {
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" onsubmit="return confirm('Bạn có chắc chắn muốn xóa vĩnh viễn ảnh này khỏi thư viện?');">
+                                <button type="submit" class="btn-mobbin-danger btn-mobbin-sm">
+                                    <span>Xóa</span>
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn-mobbin-soft btn-mobbin-sm" disabled title="Không thể xóa ảnh đang được sử dụng trong công thức">
+                                <span>Đang dùng</span>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
