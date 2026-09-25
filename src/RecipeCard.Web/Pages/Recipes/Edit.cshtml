@@ -1,0 +1,329 @@
+@page "{id:int}"
+@model RecipeCard.Web.Pages.Recipes.EditModel
+@{
+    ViewData["Title"] = $"Soạn công thức - {Model.Recipe.Name}";
+}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1" style="font-size: 13px;">
+            <a asp-page="./Index" class="text-muted text-decoration-none">Công thức</a>
+            <span class="text-faint">/</span>
+            <span class="fw-semibold">@Model.Recipe.Name</span>
+        </div>
+        <h2 class="fw-bold mb-0">@Model.Recipe.Name</h2>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-page="./Index" class="btn-mobbin-outline">
+            &larr; Danh sách
+        </a>
+        <a asp-page="./Preview" asp-route-id="@Model.Recipe.Id" class="btn-mobbin-primary">
+            <span>Xem trước & Xuất PDF &rarr;</span>
+        </a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="p-3 mb-4 rounded-pill d-flex align-items-center justify-content-between" 
+         style="background-color: #fff2f2; border: 1px solid #ffd0d0; color: #b71c1c; font-size: 14px;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold">●</span>
+            <span>@Model.ErrorMessage</span>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="p-3 mb-4 rounded-pill d-flex align-items-center justify-content-between" 
+         style="background-color: var(--color-canvas-soft); border: 1px solid var(--color-hairline); color: var(--color-ink); font-size: 14px;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-success fw-bold">✓</span>
+            <span>@Model.SuccessMessage</span>
+        </div>
+    </div>
+}
+
+<div class="d-flex flex-column gap-4">
+    <!-- Section 1: Thông tin chung -->
+    <div class="mobbin-card">
+        <div class="mobbin-card-header">
+            <div>
+                <span class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Phần 01</span>
+                <h4 class="fw-bold mb-0">Thông tin chung</h4>
+            </div>
+        </div>
+        <form method="post" asp-page-handler="UpdateDetails" asp-route-id="@Model.Recipe.Id">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">Tên công thức pha chế</label>
+                    <input name="name" value="@Model.Recipe.Name" class="form-control" required />
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label">Ghi chú chung / Hướng dẫn phục vụ</label>
+                    <input name="generalNote" value="@Model.Recipe.GeneralNote" class="form-control" placeholder="Ví dụ: Thời gian 2 phút, dùng bình Syphon, phục vụ kèm ống hút to..." />
+                </div>
+                <div class="col-12 text-end pt-2">
+                    <button type="submit" class="btn-mobbin-outline btn-mobbin-sm">Lưu thông tin chung</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Section 2: Thành phần nguyên liệu -->
+    <div class="mobbin-card">
+        <div class="mobbin-card-header">
+            <div>
+                <span class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Phần 02</span>
+                <h4 class="fw-bold mb-0">Thành phần & Định lượng (@Model.Recipe.Ingredients.Count nguyên liệu)</h4>
+            </div>
+        </div>
+        
+        @if (Model.Recipe.Ingredients.Count > 0)
+        {
+            <div class="mobbin-table-container mb-4">
+                <table class="mobbin-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">STT</th>
+                            <th>Nguyên liệu</th>
+                            <th style="width: 180px;">Định lượng</th>
+                            <th style="width: 140px;">Đơn vị</th>
+                            <th style="width: 100px;" class="text-center">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{ int ingStt = 1; }
+                        @foreach (var item in Model.Recipe.Ingredients)
+                        {
+                            <tr>
+                                <td class="text-muted" style="font-size: 13px;">@(ingStt++)</td>
+                                <td class="fw-bold">@item.Ingredient.Name</td>
+                                <td>
+                                    <span class="fw-bold" style="font-size: 16px;">@item.Quantity.ToString("0.##")</span>
+                                </td>
+                                <td>
+                                    <span class="badge-pill-soft">@item.Ingredient.DefaultUnit</span>
+                                </td>
+                                <td class="text-center">
+                                    <form method="post" asp-page-handler="RemoveIngredient" asp-route-id="@Model.Recipe.Id" asp-route-recipeIngredientId="@item.Id" class="d-inline">
+                                        <button type="submit" class="btn-mobbin-danger" title="Xóa dòng">&times;</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="p-4 mb-4 text-center rounded-3" style="background-color: var(--color-canvas-soft); border: 1px dashed var(--color-hairline);">
+                <div class="text-muted" style="font-size: 14px;">Công thức chưa có nguyên liệu nào. Hãy thêm ở bên dưới.</div>
+            </div>
+        }
+
+        <!-- Form thêm nguyên liệu -->
+        <div class="mobbin-card-soft">
+            <div class="fw-bold mb-3" style="font-size: 15px;">+ Thêm nguyên liệu vào công thức</div>
+            @if (Model.AvailableIngredients.Count > 0)
+            {
+                <form method="post" asp-page-handler="AddIngredient" asp-route-id="@Model.Recipe.Id" class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">Chọn nguyên liệu từ danh mục</label>
+                        <select name="ingredientId" class="form-select" asp-items="Model.AvailableIngredients" required></select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Định lượng (> 0)</label>
+                        <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" placeholder="Ví dụ: 22.5, 70, 105..." required />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn-mobbin-primary w-100">+ Thêm</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="text-muted" style="font-size: 14px;">
+                    Tất cả nguyên liệu trong danh mục đã được thêm hoặc danh mục đang trống.
+                    <a asp-page="/Ingredients/Create" target="_blank" class="fw-semibold text-decoration-none" style="color: var(--color-ink);">Bấm vào đây để tạo nguyên liệu mới &rarr;</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Section 3: Quy trình thực hiện -->
+    <div class="mobbin-card">
+        <div class="mobbin-card-header">
+            <div>
+                <span class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Phần 03</span>
+                <h4 class="fw-bold mb-0">Quy trình thực hiện (@Model.Recipe.Steps.Count bước)</h4>
+            </div>
+        </div>
+
+        @if (Model.Recipe.Steps.Count > 0)
+        {
+            <div class="d-flex flex-column gap-3 mb-4">
+                @for (int i = 0; i < Model.Recipe.Steps.Count; i++)
+                {
+                    var step = Model.Recipe.Steps[i];
+                    <div class="mobbin-card-soft p-3 d-flex flex-column flex-sm-row justify-content-between align-items-start gap-3">
+                        <div class="d-flex align-items-start gap-3 flex-grow-1">
+                            <span class="step-number-pill">@step.SortOrder</span>
+                            <div class="flex-grow-1">
+                                <p class="mb-2" style="font-size: 15px; font-weight: 500;">@step.Instruction</p>
+                                @if (step.MediaAsset != null)
+                                {
+                                    <div class="mt-2 position-relative d-inline-block">
+                                        <img src="@step.MediaAsset.DeliveryUrl" alt="Ảnh minh họa bước @step.SortOrder" class="step-media-tile" style="max-height: 140px; max-width: 220px;" />
+                                        <div class="position-absolute top-0 start-0 m-1">
+                                            @if (step.MediaAsset.SourceType == RecipeCard.Web.Models.MediaSourceType.AiIllustration)
+                                            {
+                                                <span class="badge-pill-dark" style="font-size: 11px;">AI minh họa</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge-pill-soft" style="font-size: 11px;">Ảnh chụp</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                else if (!string.IsNullOrEmpty(step.ImageFileName))
+                                {
+                                    <div class="mt-2 position-relative d-inline-block">
+                                        <img src="~/uploads/steps/@step.ImageFileName" alt="Ảnh minh họa bước @step.SortOrder" class="step-media-tile" style="max-height: 140px; max-width: 220px;" />
+                                        <div class="position-absolute top-0 start-0 m-1">
+                                            <span class="badge-pill-soft" style="font-size: 11px;">Ảnh cũ</span>
+                                        </div>
+                                    </div>
+                                }
+
+                                @{
+                                    var activeDraft = step.AiImageDrafts
+                                        .FirstOrDefault(d => d.State == RecipeCard.Web.Models.AiDraftState.Generated && d.ExpiresUtc > DateTime.UtcNow);
+                                }
+
+                                @if (activeDraft != null)
+                                {
+                                    <div class="mobbin-card p-3 mt-3" style="background: var(--color-canvas); border: 1.5px solid var(--color-ink);">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-bold" style="font-size: 13px; color: var(--color-ink);">
+                                                <span>Bản nháp AI đang chờ duyệt</span>
+                                                <span class="badge-pill-dark ms-1" style="font-size: 10px;">Hết hạn lúc: @activeDraft.ExpiresUtc.ToLocalTime().ToString("HH:mm")</span>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex flex-column flex-md-row gap-3 align-items-start">
+                                            <img src="@Url.Page("./Edit", "DraftImage", new { id = Model.Recipe.Id, draftId = activeDraft.Id })" 
+                                                 alt="Bản nháp AI" class="step-media-tile" style="max-height: 140px; max-width: 200px; object-fit: cover;" />
+                                            <div class="flex-grow-1">
+                                                <div class="text-muted mb-2" style="font-size: 12px; line-height: 1.4;">
+                                                    @if (!string.IsNullOrEmpty(activeDraft.UserBrief))
+                                                    {
+                                                        <div><strong>Yêu cầu:</strong> @activeDraft.UserBrief</div>
+                                                    }
+                                                    <div><small class="text-faint">Model: @activeDraft.Model</small></div>
+                                                </div>
+                                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                                    <form method="post" asp-page-handler="AcceptAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@activeDraft.Id">
+                                                        <button type="submit" class="btn-mobbin-primary btn-mobbin-sm">
+                                                            <span>Chấp nhận ảnh này</span>
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" asp-page-handler="DiscardAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@activeDraft.Id">
+                                                        <button type="submit" class="btn-mobbin-danger btn-mobbin-sm">
+                                                            <span>Bỏ ảnh</span>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                                <details class="mt-2">
+                                                    <summary class="text-muted cursor-pointer" style="font-size: 12px;">Tạo lại với mô tả khác &darr;</summary>
+                                                    <form method="post" asp-page-handler="RegenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@activeDraft.Id" class="mt-2 d-flex gap-2">
+                                                        <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@activeDraft.UserBrief" />
+                                                        <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                                    </form>
+                                                </details>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <details class="mt-2">
+                                        <summary class="btn-mobbin-outline btn-mobbin-sm d-inline-block cursor-pointer" style="list-style: none;">
+                                            <span>Tạo minh họa AI</span>
+                                        </summary>
+                                        <div class="mobbin-card p-3 mt-2" style="background: var(--color-canvas); max-width: 480px;">
+                                            <form method="post" asp-page-handler="GenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-stepId="@step.Id">
+                                                <div class="mb-2">
+                                                    <label class="form-label" style="font-size: 12.5px;">Yêu cầu thêm cho ảnh (tùy chọn, tối đa 500 ký tự)</label>
+                                                    <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Ví dụ: ly thủy tinh trong suốt, góc nhìn từ trên xuống..." maxlength="500" />
+                                                </div>
+                                                <button type="submit" class="btn-mobbin-primary btn-mobbin-sm">
+                                                    <span>Tạo ảnh nháp AI</span>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                }
+                            </div>
+                        </div>
+                        <div class="d-inline-flex align-items-center gap-1 align-self-end align-self-sm-start">
+                            @if (i > 0)
+                            {
+                                <form method="post" asp-page-handler="MoveStep" asp-route-id="@Model.Recipe.Id" asp-route-stepId="@step.Id" asp-route-direction="up" class="d-inline">
+                                    <button type="submit" class="btn-mobbin-soft btn-mobbin-sm" title="Di chuyển lên">&uarr;</button>
+                                </form>
+                            }
+                            @if (i < Model.Recipe.Steps.Count - 1)
+                            {
+                                <form method="post" asp-page-handler="MoveStep" asp-route-id="@Model.Recipe.Id" asp-route-stepId="@step.Id" asp-route-direction="down" class="d-inline">
+                                    <button type="submit" class="btn-mobbin-soft btn-mobbin-sm" title="Di chuyển xuống">&darr;</button>
+                                </form>
+                            }
+                            <form method="post" asp-page-handler="DeleteStep" asp-route-id="@Model.Recipe.Id" asp-route-stepId="@step.Id" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa bước này?');">
+                                <button type="submit" class="btn-mobbin-danger" title="Xóa bước">&times;</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="p-4 mb-4 text-center rounded-3" style="background-color: var(--color-canvas-soft); border: 1px dashed var(--color-hairline);">
+                <div class="text-muted" style="font-size: 14px;">Công thức chưa có bước thực hiện nào. Hãy thêm bước bên dưới.</div>
+            </div>
+        }
+
+        <!-- Form thêm bước mới -->
+        <div class="mobbin-card-soft">
+            <div class="fw-bold mb-3" style="font-size: 15px;">+ Thêm bước thực hiện mới (Bước @(Model.Recipe.Steps.Count + 1))</div>
+            <form method="post" asp-page-handler="AddStep" asp-route-id="@Model.Recipe.Id" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Mô tả thao tác</label>
+                    <textarea name="instruction" class="form-control" rows="2" placeholder="Ví dụ: Đong bột sữa và HHSD vào ly giấy, riêng cốt trà đong vào bình shaker..." required></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Tùy chọn A: Tải ảnh mới (.jpg, .png, .webp, tối đa 5MB)</label>
+                        <input type="file" name="image" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Tùy chọn B: Hoặc chọn từ Thư viện ảnh</label>
+                        <select name="mediaAssetId" class="form-select">
+                            <option value="">-- Không chọn ảnh thư viện --</option>
+                            @foreach (var asset in Model.AvailableMediaAssets)
+                            {
+                                <option value="@asset.Value">@asset.Text</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn-mobbin-primary">+ Thêm bước này</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

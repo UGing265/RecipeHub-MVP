@@ -1,0 +1,45 @@
+@page "{id:int}"
+@model RecipeCard.Web.Pages.Ingredients.EditModel
+@{
+    ViewData["Title"] = "Chỉnh sửa nguyên liệu";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="mobbin-card">
+            <div class="mobbin-card-header">
+                <div>
+                    <div class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Thư viện nguyên liệu</div>
+                    <h3 class="fw-bold mb-0">Chỉnh sửa nguyên liệu</h3>
+                </div>
+            </div>
+
+            <form method="post">
+                <input type="hidden" asp-for="Input.Id" />
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3" style="font-size: 14px;"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.Name" class="form-label"></label>
+                    <input asp-for="Input.Name" class="form-control" autofocus />
+                    <span asp-validation-for="Input.Name" class="text-danger" style="font-size: 13px;"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Input.DefaultUnit" class="form-label"></label>
+                    <input asp-for="Input.DefaultUnit" class="form-control" />
+                    <span asp-validation-for="Input.DefaultUnit" class="text-danger" style="font-size: 13px;"></span>
+                    <div class="text-muted mt-2" style="font-size: 13px;">Đơn vị này sẽ được dùng mặc định khi định lượng trong công thức.</div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top" style="border-color: var(--color-hairline-soft) !important;">
+                    <a asp-page="./Index" class="btn-mobbin-outline">Quay lại</a>
+                    <button type="submit" class="btn-mobbin-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

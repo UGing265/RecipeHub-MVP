@@ -1,0 +1,43 @@
+@page
+@model RecipeCard.Web.Pages.Recipes.CreateModel
+@{
+    ViewData["Title"] = "Tạo công thức mới";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="mobbin-card">
+            <div class="mobbin-card-header">
+                <div>
+                    <div class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Quy trình R&D</div>
+                    <h3 class="fw-bold mb-0">Tạo công thức pha chế mới</h3>
+                </div>
+            </div>
+
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3" style="font-size: 14px;"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.Name" class="form-label"></label>
+                    <input asp-for="Input.Name" class="form-control" placeholder="Ví dụ: Ô Long Sữa Phê La, Matcha Coco Latte..." autofocus />
+                    <span asp-validation-for="Input.Name" class="text-danger" style="font-size: 13px;"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="Input.GeneralNote" class="form-label"></label>
+                    <textarea asp-for="Input.GeneralNote" class="form-control" rows="3" placeholder="Ghi chú về thời gian hoàn thành, thiết bị (Syphon, French Press...), lưu ý thao tác đặc biệt..."></textarea>
+                    <span asp-validation-for="Input.GeneralNote" class="text-danger" style="font-size: 13px;"></span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center pt-3 border-top" style="border-color: var(--color-hairline-soft) !important;">
+                    <a asp-page="./Index" class="btn-mobbin-outline">Quay lại danh sách</a>
+                    <button type="submit" class="btn-mobbin-primary">Tạo & Soạn chi tiết &rarr;</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

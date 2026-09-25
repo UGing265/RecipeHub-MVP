@@ -1,0 +1,100 @@
+@page
+@model RecipeCard.Web.Pages.Recipes.IndexModel
+@{
+    ViewData["Title"] = "Danh sách công thức";
+}
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4">
+    <div>
+        <div class="text-uppercase text-muted fw-semibold" style="font-size: 12px; letter-spacing: 0.05em;">Hồ sơ R&D</div>
+        <h2 class="fw-bold mb-0">Danh sách công thức pha chế</h2>
+    </div>
+    <a asp-page="./Create" class="btn-mobbin-primary">
+        <span>+ Tạo công thức mới</span>
+    </a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="p-3 mb-4 rounded-pill d-flex align-items-center justify-content-between" 
+         style="background-color: var(--color-canvas-soft); border: 1px solid var(--color-hairline); color: var(--color-ink); font-size: 14px;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-success fw-bold">✓</span>
+            <span>@Model.SuccessMessage</span>
+        </div>
+    </div>
+}
+
+@if (Model.Recipes.Count == 0)
+{
+    <div class="mobbin-card text-center py-5">
+        <div class="text-muted mb-3" style="font-size: 15px;">Chưa có công thức nào. Hãy bắt đầu tạo công thức đầu tiên.</div>
+        <a asp-page="./Create" class="btn-mobbin-primary">Tạo công thức mới</a>
+    </div>
+}
+else
+{
+    <div class="mobbin-table-container">
+        <table class="mobbin-table">
+            <thead>
+                <tr>
+                    <th style="width: 70px;">STT</th>
+                    <th>Tên công thức</th>
+                    <th style="width: 150px;">Nguyên liệu</th>
+                    <th style="width: 130px;">Quy trình</th>
+                    <th style="width: 180px;">Trạng thái</th>
+                    <th style="width: 260px;" class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ int stt = 1; }
+                @foreach (var item in Model.Recipes)
+                {
+                    <tr>
+                        <td class="text-muted" style="font-size: 13px;">@(stt++)</td>
+                        <td>
+                            <a asp-page="./Edit" asp-route-id="@item.Id" class="fw-bold text-decoration-none" style="color: var(--color-ink);">
+                                @item.Name
+                            </a>
+                            @if (!string.IsNullOrEmpty(item.GeneralNote))
+                            {
+                                <div class="text-muted text-truncate" style="max-width: 320px; font-size: 13px;">
+                                    @item.GeneralNote
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge-pill-soft">@item.IngredientCount NL</span>
+                        </td>
+                        <td>
+                            <span class="badge-pill-soft">@item.StepCount bước</span>
+                        </td>
+                        <td>
+                            @if (item.IsReady)
+                            {
+                                <span class="badge-pill-soft" style="border-color: var(--color-ink); font-weight: 600;">
+                                    <span style="color: #2e7d32; margin-right: 4px;">●</span> Sẵn sàng xuất PDF
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge-pill-soft text-muted">
+                                    <span style="color: #ed6c02; margin-right: 4px;">○</span> Chưa đủ dữ liệu
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex align-items-center gap-1">
+                                <a asp-page="./Edit" asp-route-id="@item.Id" class="btn-mobbin-soft btn-mobbin-sm">Soạn</a>
+                                <a asp-page="./Preview" asp-route-id="@item.Id" class="btn-mobbin-soft btn-mobbin-sm">Xem trước</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" class="d-inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa công thức này cùng tất cả bước và ảnh liên quan?');">
+                                    <button type="submit" class="btn-mobbin-danger">Xóa</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,197 @@
+@page "{id:int}"
+@model RecipeCard.Web.Pages.Recipes.PreviewModel
+@{
+    ViewData["Title"] = $"Xem trước - {Model.Recipe.Name}";
+}
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1" style="font-size: 13px;">
+            <a asp-page="./Index" class="text-muted text-decoration-none">Công thức</a>
+            <span class="text-faint">/</span>
+            <a asp-page="./Edit" asp-route-id="@Model.Recipe.Id" class="text-muted text-decoration-none">@Model.Recipe.Name</a>
+            <span class="text-faint">/</span>
+            <span class="fw-semibold">Xem trước</span>
+        </div>
+        <h2 class="fw-bold mb-0">Xem trước thẻ công thức</h2>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-page="./Edit" asp-route-id="@Model.Recipe.Id" class="btn-mobbin-outline">
+            &larr; Quay lại chỉnh sửa
+        </a>
+        @if (Model.IsReady)
+        {
+            <a asp-page-handler="Pdf" asp-route-id="@Model.Recipe.Id" class="btn-mobbin-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                </svg>
+                <span>Xuất & Tải file PDF</span>
+            </a>
+        }
+        else
+        {
+            <button class="btn-mobbin-outline text-muted" disabled title="Cần có ít nhất 1 nguyên liệu và 1 bước để xuất PDF" style="opacity: 0.6; cursor: not-allowed;">
+                Chưa đủ điều kiện xuất PDF
+            </button>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="p-3 mb-4 rounded-pill d-flex align-items-center justify-content-between" 
+         style="background-color: #fff2f2; border: 1px solid #ffd0d0; color: #b71c1c; font-size: 14px;">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold">●</span>
+            <span>@Model.ErrorMessage</span>
+        </div>
+    </div>
+}
+
+@if (!Model.IsReady)
+{
+    <div class="mobbin-card-soft p-4 mb-4" style="border-left: 4px solid var(--color-ink);">
+        <h5 class="fw-bold mb-2">Công thức chưa sẵn sàng xuất PDF</h5>
+        <p class="text-muted mb-3" style="font-size: 15px;">
+            Một thẻ công thức cần có <strong>ít nhất 1 nguyên liệu</strong> và <strong>ít nhất 1 bước thực hiện</strong> để có thể xuất file PDF hoàn chỉnh.
+            Hiện tại: @Model.Recipe.Ingredients.Count nguyên liệu, @Model.Recipe.Steps.Count bước.
+        </p>
+        <a asp-page="./Edit" asp-route-id="@Model.Recipe.Id" class="btn-mobbin-outline btn-mobbin-sm">
+            Quay lại bổ sung thông tin &rarr;
+        </a>
+    </div>
+}
+
+<!-- Preview Sheet (styled like standardized Mobbin card) -->
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="recipe-sheet-card">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-start pb-4 mb-4 border-bottom" style="border-color: var(--color-ink) !important; border-bottom-width: 2px !important;">
+                <div>
+                    <h1 class="display-6 fw-bold mb-1">@Model.Recipe.Name</h1>
+                    <div class="text-uppercase fw-semibold text-muted" style="font-size: 11px; letter-spacing: 0.06em;">
+                        BẢNG CÔNG THỨC PHA CHẾ & HƯỚNG DẪN THỰC HIỆN
+                    </div>
+                </div>
+                <div class="text-end text-muted" style="font-size: 12px;">
+                    Ngày lập: @DateTime.Now.ToString("dd/MM/yyyy")
+                </div>
+            </div>
+
+            <!-- Section 1: Ingredients -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge-pill-soft" style="font-size: 11px;">01</span>
+                    <h5 class="fw-bold mb-0 text-uppercase" style="letter-spacing: 0.04em;">Thành phần nguyên liệu</h5>
+                </div>
+
+                @if (Model.Recipe.Ingredients.Count > 0)
+                {
+                    <div class="mobbin-table-container">
+                        <table class="mobbin-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">STT</th>
+                                    <th>Tên nguyên liệu</th>
+                                    <th style="width: 180px;" class="text-end">Định lượng</th>
+                                    <th style="width: 140px;" class="text-center">Đơn vị</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ int stt = 1; }
+                                @foreach (var item in Model.Recipe.Ingredients)
+                                {
+                                    <tr>
+                                        <td class="text-muted" style="font-size: 13px;">@(stt++)</td>
+                                        <td class="fw-bold">@item.Ingredient.Name</td>
+                                        <td class="text-end fw-bold" style="font-size: 16px;">@item.Quantity.ToString("0.##")</td>
+                                        <td class="text-center">
+                                            <span class="badge-pill-soft">@item.Ingredient.DefaultUnit</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-3 text-muted text-center" style="font-size: 14px;">Chưa có nguyên liệu nào.</div>
+                }
+            </div>
+
+            <!-- Section 2: Steps -->
+            <div class="mb-5">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge-pill-soft" style="font-size: 11px;">02</span>
+                    <h5 class="fw-bold mb-0 text-uppercase" style="letter-spacing: 0.04em;">Quy trình thực hiện</h5>
+                </div>
+
+                @if (Model.Recipe.Steps.Count > 0)
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var step in Model.Recipe.Steps.OrderBy(s => s.SortOrder))
+                        {
+                            <div class="mobbin-card-soft p-3">
+                                <div class="d-flex align-items-start gap-3">
+                                    <span class="step-number-pill">@step.SortOrder</span>
+                                    <div class="flex-grow-1">
+                                        <p class="mb-2" style="font-size: 15px; font-weight: 500;">@step.Instruction</p>
+                                        @if (step.MediaAsset != null)
+                                        {
+                                            <div class="mt-2 position-relative d-inline-block">
+                                                <img src="@step.MediaAsset.DeliveryUrl" alt="Ảnh bước @step.SortOrder" class="step-media-tile" style="max-height: 160px; max-width: 240px;" />
+                                                <div class="position-absolute top-0 start-0 m-1">
+                                                    @if (step.MediaAsset.SourceType == RecipeCard.Web.Models.MediaSourceType.AiIllustration)
+                                                    {
+                                                        <span class="badge-pill-dark" style="font-size: 11px;">AI minh họa</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge-pill-soft" style="font-size: 11px;">Ảnh chụp</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                        else if (!string.IsNullOrEmpty(step.ImageFileName))
+                                        {
+                                            <div class="mt-2 position-relative d-inline-block">
+                                                <img src="~/uploads/steps/@step.ImageFileName" alt="Ảnh bước @step.SortOrder" class="step-media-tile" style="max-height: 160px; max-width: 240px;" />
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="p-3 text-muted text-center" style="font-size: 14px;">Chưa có bước thực hiện nào.</div>
+                }
+            </div>
+
+            <!-- Section 3: Notes -->
+            @if (!string.IsNullOrWhiteSpace(Model.Recipe.GeneralNote))
+            {
+                <div class="mb-5">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge-pill-soft" style="font-size: 11px;">03</span>
+                        <h5 class="fw-bold mb-0 text-uppercase" style="letter-spacing: 0.04em;">Lưu ý & Hướng dẫn phục vụ</h5>
+                    </div>
+                    <div class="mobbin-card-soft p-3" style="border-left: 3px solid var(--color-ink);">
+                        <p class="mb-0 text-muted fst-italic" style="font-size: 14px; line-height: 1.5;">@Model.Recipe.GeneralNote</p>
+                    </div>
+                </div>
+            }
+
+            <!-- Footer -->
+            <div class="border-top pt-4 text-muted d-flex justify-content-between align-items-center" style="border-color: var(--color-hairline) !important; font-size: 13px;">
+                <span>R&D Recipe Hub - Tài liệu vận hành nội bộ</span>
+                <span>Thẻ công thức chuẩn hóa</span>
+            </div>
+        </div>
+    </div>
+</div>
