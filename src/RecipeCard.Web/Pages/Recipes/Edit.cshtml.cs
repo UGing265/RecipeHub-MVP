@@ -337,7 +337,8 @@ public class EditModel(
             return RedirectToPage(new { id });
         }
 
-        var prompt = _promptBuilder.BuildPrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        var sourcePrompt = _promptBuilder.BuildVietnameseSourcePrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        var prompt = _promptBuilder.BuildFinalImagePrompt(sourcePrompt);
 
         GeneratedImage generated;
         try
@@ -433,7 +434,8 @@ public class EditModel(
         draft.State = AiDraftState.Discarded;
 
         var step = draft.RecipeStep;
-        var prompt = _promptBuilder.BuildPrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        var sourcePrompt = _promptBuilder.BuildVietnameseSourcePrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        var prompt = _promptBuilder.BuildFinalImagePrompt(sourcePrompt);
 
         GeneratedImage generated;
         try

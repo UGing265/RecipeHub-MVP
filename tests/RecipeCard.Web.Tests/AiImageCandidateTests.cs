@@ -63,25 +63,32 @@ public class AiImageCandidateTests : IDisposable
     }
 
     [Fact]
-    public void PromptBuilder_creates_canonical_prompt()
+    public void PromptBuilder_creates_source_and_final_prompts()
     {
-        var prompt = _promptBuilder.BuildPrompt("Trà Ô Long Sữa", 2, "Khuấy đều hỗn hợp", "góc nhìn từ trên xuống");
+        var source = _promptBuilder.BuildVietnameseSourcePrompt(
+            "Matcha sữa dừa", 2, "Đong sữa dừa vào ly có đá", "ly thủy tinh");
+        var final = _promptBuilder.BuildFinalImagePrompt(
+            "Beverage recipe: Coconut milk matcha. Step 2: Pour coconut milk into a glass with ice.");
 
-        Assert.Contains("Trà Ô Long Sữa", prompt);
-        Assert.Contains("Step 2", prompt);
-        Assert.Contains("Khuấy đều hỗn hợp", prompt);
-        Assert.Contains("góc nhìn từ trên xuống", prompt);
-        Assert.Contains("Clear beverage preparation photo", prompt);
+        Assert.Contains("Matcha sữa dừa", source);
+        Assert.Contains("Bước 2", source);
+        Assert.Contains("Đong sữa dừa vào ly có đá", source);
+        Assert.Contains("ly thủy tinh", source);
+        Assert.DoesNotContain("Clear beverage preparation photo", source);
+
+        Assert.Contains("Beverage recipe: Coconut milk matcha. Step 2: Pour coconut milk into a glass with ice.", final);
+        Assert.Contains(AiImagePromptBuilder.DefaultStyleGuideline, final);
+        Assert.DoesNotContain("Matcha sữa dừa", final);
     }
 
     [Fact]
     public void PromptBuilder_truncates_oversized_brief()
     {
         var oversized = new string('a', 600);
-        var prompt = _promptBuilder.BuildPrompt("Trà Ô Long", 1, "Rót nước", oversized);
+        var source = _promptBuilder.BuildVietnameseSourcePrompt("Trà Ô Long", 1, "Rót nước", oversized);
 
-        Assert.DoesNotContain(oversized, prompt);
-        Assert.Contains(new string('a', 500), prompt);
+        Assert.DoesNotContain(oversized, source);
+        Assert.Contains(new string('a', 500), source);
     }
 
     [Fact]

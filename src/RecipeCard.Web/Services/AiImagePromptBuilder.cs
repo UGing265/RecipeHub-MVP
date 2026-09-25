@@ -2,7 +2,8 @@ namespace RecipeCard.Web.Services;
 
 public interface IAiImagePromptBuilder
 {
-    string BuildPrompt(string recipeName, int stepOrder, string instruction, string? userBrief);
+    string BuildVietnameseSourcePrompt(string recipeName, int stepOrder, string instruction, string? userBrief);
+    string BuildFinalImagePrompt(string translatedEnglishPrompt);
 }
 
 public class AiImagePromptBuilder : IAiImagePromptBuilder
@@ -10,18 +11,16 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
     public const int MaxUserBriefLength = 500;
     public const string DefaultStyleGuideline = "Clear beverage preparation photo, commercial food photography, high resolution, realistic lighting, clean neutral studio background, 4k.";
 
-    public string BuildPrompt(string recipeName, int stepOrder, string instruction, string? userBrief)
+    public string BuildVietnameseSourcePrompt(string recipeName, int stepOrder, string instruction, string? userBrief)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(recipeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(instruction);
 
         var promptBuilder = new System.Text.StringBuilder();
 
-        // 1. Context: Recipe & Step
-        promptBuilder.Append($"Beverage recipe: {recipeName.Trim()}. ");
-        promptBuilder.Append($"Step {stepOrder}: {instruction.Trim()}. ");
+        promptBuilder.Append($"Công thức đồ uống: {recipeName.Trim()}. ");
+        promptBuilder.Append($"Bước {stepOrder}: {instruction.Trim()}. ");
 
-        // 2. User brief (if provided, sanitized and bounded)
         if (!string.IsNullOrWhiteSpace(userBrief))
         {
             var cleanBrief = userBrief.Trim();
@@ -29,12 +28,22 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
             {
                 cleanBrief = cleanBrief[..MaxUserBriefLength].Trim();
             }
-            promptBuilder.Append($"Additional visual direction: {cleanBrief}. ");
+            promptBuilder.Append($"Ghi chú hình ảnh: {cleanBrief}. ");
         }
 
-        // 3. Style guidelines
-        promptBuilder.Append(DefaultStyleGuideline);
+        return promptBuilder.ToString().Trim();
+    }
 
-        return promptBuilder.ToString();
+    public string BuildFinalImagePrompt(string translatedEnglishPrompt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(translatedEnglishPrompt);
+
+        var cleanEnglish = translatedEnglishPrompt.Trim();
+        if (!cleanEnglish.EndsWith('.'))
+        {
+            cleanEnglish += ".";
+        }
+
+        return $"{cleanEnglish} {DefaultStyleGuideline}";
     }
 }
