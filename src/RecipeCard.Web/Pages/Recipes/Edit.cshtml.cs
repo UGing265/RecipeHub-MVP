@@ -15,7 +15,8 @@ public class EditModel(
     IImageValidator? validator = null,
     IAiImageGenerator? aiGenerator = null,
     IAiDraftFileStore? draftStore = null,
-    IAiImagePromptBuilder? promptBuilder = null) : PageModel
+    IAiImagePromptBuilder? promptBuilder = null,
+    IAiPromptTranslator? promptTranslator = null) : PageModel
 {
     private readonly RecipeDbContext _db = db;
     private readonly IImageStorageService _imageStorage = imageStorage;
@@ -23,6 +24,7 @@ public class EditModel(
     private readonly IAiImageGenerator? _aiGenerator = aiGenerator;
     private readonly IAiDraftFileStore? _draftStore = draftStore;
     private readonly IAiImagePromptBuilder _promptBuilder = promptBuilder ?? new AiImagePromptBuilder();
+    private readonly IAiPromptTranslator? _promptTranslator = promptTranslator;
     public Recipe Recipe { get; set; } = null!;
     public List<SelectListItem> AvailableIngredients { get; set; } = [];
     public List<SelectListItem> AvailableMediaAssets { get; set; } = [];
@@ -318,6 +320,12 @@ public class EditModel(
             return RedirectToPage(new { id });
         }
 
+        if (_promptTranslator == null)
+        {
+            ErrorMessage = "Dịch vụ dịch prompt AI chưa được cấu hình.";
+            return RedirectToPage(new { id });
+        }
+
         var step = await _db.RecipeSteps
             .Include(s => s.Recipe)
             .Include(s => s.AiImageDrafts)
@@ -337,8 +345,16 @@ public class EditModel(
             return RedirectToPage(new { id });
         }
 
-        var sourcePrompt = _promptBuilder.BuildVietnameseSourcePrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
-        var prompt = _promptBuilder.BuildFinalImagePrompt(sourcePrompt);
+        string prompt;
+        try
+        {
+            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
+            return RedirectToPage(new { id });
+        }
 
         GeneratedImage generated;
         try
@@ -419,6 +435,12 @@ public class EditModel(
             return RedirectToPage(new { id });
         }
 
+        if (_promptTranslator == null)
+        {
+            ErrorMessage = "Dịch vụ dịch prompt AI chưa được cấu hình.";
+            return RedirectToPage(new { id });
+        }
+
         var draft = await _db.AiImageDrafts
             .Include(d => d.RecipeStep)
                 .ThenInclude(s => s.Recipe)
@@ -429,14 +451,21 @@ public class EditModel(
             return NotFound();
         }
 
+        var step = draft.RecipeStep;
+        string prompt;
+        try
+        {
+            prompt = await BuildAndTranslatePromptAsync(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
+            return RedirectToPage(new { id });
+        }
+
         // Clean up previous draft
         _draftStore.DeleteDraft(draft.TemporaryFileName);
         draft.State = AiDraftState.Discarded;
-
-        var step = draft.RecipeStep;
-        var sourcePrompt = _promptBuilder.BuildVietnameseSourcePrompt(step.Recipe.Name, step.SortOrder, step.Instruction, userBrief);
-        var prompt = _promptBuilder.BuildFinalImagePrompt(sourcePrompt);
-
         GeneratedImage generated;
         try
         {
@@ -652,5 +681,17 @@ public class EditModel(
                 Text = $"{(m.SourceType == MediaSourceType.AiIllustration ? "[AI] " : "")}{(string.IsNullOrWhiteSpace(m.OriginalFileName) ? $"Asset #{m.Id}" : m.OriginalFileName)} ({m.CreatedAtUtc:dd/MM})"
             })
             .ToListAsync();
+    }
+
+    private async Task<string> BuildAndTranslatePromptAsync(
+        string recipeName,
+        int stepOrder,
+        string instruction,
+        string? userBrief,
+        CancellationToken cancellationToken = default)
+    {
+        var sourcePrompt = _promptBuilder.BuildVietnameseSourcePrompt(recipeName, stepOrder, instruction, userBrief);
+        var translated = await _promptTranslator!.TranslateVietnameseToEnglishAsync(sourcePrompt, cancellationToken);
+        return _promptBuilder.BuildFinalImagePrompt(translated);
     }
 }
