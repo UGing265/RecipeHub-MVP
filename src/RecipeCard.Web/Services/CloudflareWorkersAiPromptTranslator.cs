@@ -33,21 +33,44 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
 
         var model = !string.IsNullOrWhiteSpace(_options.TranslationModel)
             ? _options.TranslationModel
-            : "@cf/meta/m2m100-1.2b";
+            : "@cf/meta/llama-3.1-8b-instruct";
 
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        var payload = JsonSerializer.Serialize(new
+        string payload;
+        if (IsLlamaModel(model))
         {
-            text = vietnamesePrompt,
-            source_lang = "vi",
-            target_lang = "en"
-        });
+            payload = JsonSerializer.Serialize(new
+            {
+                messages = new object[]
+                {
+                    new
+                    {
+                        role = "system",
+                        content = "You are a beverage preparation visual prompt engineer for FLUX image generator. Convert the Vietnamese beverage recipe step into a clear, realistic English visual description of the action. Translate Vietnamese F&B terms accurately: 'đường nước' or 'nước đường' to 'sugar syrup', 'đá' or 'đá viên' to 'ice cubes', 'ly giấy' to 'paper cup', 'ly thủy tinh' to 'clear glass cup'. Do not output step numbers, prefixes, quotes, markdown, or conversational filler. Output only the English visual action description."
+                    },
+                    new
+                    {
+                        role = "user",
+                        content = vietnamesePrompt
+                    }
+                },
+                max_tokens = 150
+            });
+        }
+        else
+        {
+            payload = JsonSerializer.Serialize(new
+            {
+                text = vietnamesePrompt,
+                source_lang = "vi",
+                target_lang = "en"
+            });
+        }
         request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
-
         HttpResponseMessage response;
         try
         {
@@ -107,11 +130,18 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
             using var doc = JsonDocument.Parse(responseBody);
             if (doc.RootElement.TryGetProperty("result", out var resultElement))
             {
-                if (resultElement.ValueKind == JsonValueKind.Object &&
-                    resultElement.TryGetProperty("translated_text", out var textProp) &&
-                    textProp.ValueKind == JsonValueKind.String)
+                if (resultElement.ValueKind == JsonValueKind.Object)
                 {
-                    translatedText = textProp.GetString();
+                    if (resultElement.TryGetProperty("response", out var respProp) &&
+                        respProp.ValueKind == JsonValueKind.String)
+                    {
+                        translatedText = respProp.GetString();
+                    }
+                    else if (resultElement.TryGetProperty("translated_text", out var textProp) &&
+                             textProp.ValueKind == JsonValueKind.String)
+                    {
+                        translatedText = textProp.GetString();
+                    }
                 }
                 else if (resultElement.ValueKind == JsonValueKind.Array &&
                          resultElement.GetArrayLength() > 0)
@@ -135,7 +165,31 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
         {
             throw new InvalidOperationException("Dịch vụ Cloudflare AI không trả về kết quả dịch hợp lệ.");
         }
+        var cleaned = SanitizeOutput(translatedText);
+        if (string.IsNullOrWhiteSpace(cleaned))
+        {
+            throw new InvalidOperationException("Dịch vụ Cloudflare AI không trả về kết quả dịch hợp lệ.");
+        }
 
-        return translatedText.Trim();
+        return cleaned;
+    }
+
+    private static bool IsLlamaModel(string model)
+    {
+        return model.Contains("llama", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string SanitizeOutput(string text)
+    {
+        var clean = text.Trim();
+        if (clean.StartsWith('"') && clean.EndsWith('"') && clean.Length >= 2)
+        {
+            clean = clean[1..^1].Trim();
+        }
+        if (clean.StartsWith("```") && clean.EndsWith("```") && clean.Length >= 6)
+        {
+            clean = clean[3..^3].Trim();
+        }
+        return clean;
     }
 }

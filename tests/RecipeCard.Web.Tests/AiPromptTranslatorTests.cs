@@ -26,7 +26,68 @@ public class AiPromptTranslatorTests
     }
 
     [Fact]
-    public async Task TranslateVietnameseToEnglishAsync_sends_correct_outbound_request_and_handles_object_result()
+    public async Task TranslateVietnameseToEnglishAsync_with_llama_sends_chat_messages_and_handles_response()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        string? capturedBody = null;
+
+        var translator = CreateTranslator(async req =>
+        {
+            capturedRequest = req;
+            if (req.Content != null)
+            {
+                capturedBody = await req.Content.ReadAsStringAsync();
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"result":{"response":"Pour coconut milk into a glass with ice."}}""",
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
+        });
+
+        var result = await translator.TranslateVietnameseToEnglishAsync(VietnameseInput);
+
+        Assert.Equal(ExpectedEnglish, result);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(HttpMethod.Post, capturedRequest.Method);
+        Assert.Equal(
+            $"https://api.cloudflare.com/client/v4/accounts/{TestAccountId}/ai/run/@cf/meta/llama-3.1-8b-instruct",
+            capturedRequest.RequestUri?.ToString());
+        Assert.Equal("Bearer", capturedRequest.Headers.Authorization?.Scheme);
+        Assert.Equal(TestApiToken, capturedRequest.Headers.Authorization?.Parameter);
+
+        Assert.NotNull(capturedBody);
+        using var doc = JsonDocument.Parse(capturedBody);
+        var root = doc.RootElement;
+        Assert.True(root.TryGetProperty("messages", out var messages));
+        Assert.Equal(2, messages.GetArrayLength());
+        Assert.Equal("system", messages[0].GetProperty("role").GetString());
+        Assert.Contains("beverage", messages[0].GetProperty("content").GetString());
+        Assert.Equal("user", messages[1].GetProperty("role").GetString());
+        Assert.Equal(VietnameseInput, messages[1].GetProperty("content").GetString());
+        Assert.Equal(150, root.GetProperty("max_tokens").GetInt32());
+    }
+
+    [Fact]
+    public async Task TranslateVietnameseToEnglishAsync_with_llama_sanitizes_surrounding_quotes()
+    {
+        var translator = CreateTranslator(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"result":{"response":"\"Pour coconut milk into a glass with ice.\""}}""",
+                System.Text.Encoding.UTF8,
+                "application/json")
+        });
+
+        var result = await translator.TranslateVietnameseToEnglishAsync(VietnameseInput);
+        Assert.Equal(ExpectedEnglish, result);
+    }
+
+    [Fact]
+    public async Task TranslateVietnameseToEnglishAsync_with_m2m100_sends_correct_outbound_request_and_handles_object_result()
     {
         HttpRequestMessage? capturedRequest = null;
         string? capturedBody = null;
@@ -46,7 +107,7 @@ public class AiPromptTranslatorTests
                     System.Text.Encoding.UTF8,
                     "application/json")
             };
-        });
+        }, model: "@cf/meta/m2m100-1.2b");
 
         var result = await translator.TranslateVietnameseToEnglishAsync(VietnameseInput);
 
@@ -65,7 +126,6 @@ public class AiPromptTranslatorTests
         Assert.Equal("vi", doc.RootElement.GetProperty("source_lang").GetString());
         Assert.Equal("en", doc.RootElement.GetProperty("target_lang").GetString());
     }
-
     [Fact]
     public async Task TranslateVietnameseToEnglishAsync_handles_array_result()
     {
@@ -166,19 +226,21 @@ public class AiPromptTranslatorTests
             translator.TranslateVietnameseToEnglishAsync(VietnameseInput, cts.Token));
     }
 
-    private static IAiPromptTranslator CreateTranslator(Func<HttpRequestMessage, HttpResponseMessage> handler)
+
+    private static IAiPromptTranslator CreateTranslator(Func<HttpRequestMessage, HttpResponseMessage> handler, string? model = null)
     {
-        return CreateTranslator(req => Task.FromResult(handler(req)));
+        return CreateTranslator(req => Task.FromResult(handler(req)), model);
     }
 
-    private static IAiPromptTranslator CreateTranslator(Func<HttpRequestMessage, Task<HttpResponseMessage>> asyncHandler)
+    private static IAiPromptTranslator CreateTranslator(Func<HttpRequestMessage, Task<HttpResponseMessage>> asyncHandler, string? model = null)
     {
         var fakeHandler = new AsyncFakeHttpMessageHandler(asyncHandler);
         var httpClient = new HttpClient(fakeHandler);
         var options = Options.Create(new CloudflareOptions
         {
             AccountId = TestAccountId,
-            ApiToken = TestApiToken
+            ApiToken = TestApiToken,
+            TranslationModel = model ?? "@cf/meta/llama-3.1-8b-instruct"
         });
 
         return new CloudflareWorkersAiPromptTranslator(httpClient, options);

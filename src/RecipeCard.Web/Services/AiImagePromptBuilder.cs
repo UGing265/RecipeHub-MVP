@@ -9,7 +9,7 @@ public interface IAiImagePromptBuilder
 public class AiImagePromptBuilder : IAiImagePromptBuilder
 {
     public const int MaxUserBriefLength = 500;
-    public const string DefaultStyleGuideline = "Clear beverage preparation photo, commercial food photography, high resolution, realistic lighting, clean neutral studio background, 4k.";
+    public const string DefaultStyleGuideline = "Clear beverage preparation photo, commercial food photography, high resolution, realistic lighting, clean neutral studio background, 4k. No text, no letters, no watermark, no labels, no numbers, no words.";
 
     public string BuildVietnameseSourcePrompt(string recipeName, int stepOrder, string instruction, string? userBrief)
     {
