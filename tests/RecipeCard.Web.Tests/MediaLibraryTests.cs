@@ -43,6 +43,42 @@ public class MediaLibraryTests : IDisposable
     }
 
     [Fact]
+    public async Task OnGetAsync_loads_media_items_without_sqlite_apply_error()
+    {
+        var asset = new MediaAsset
+        {
+            ProviderPublicId = "test_asset_1",
+            DeliveryUrl = "https://res.cloudinary.com/demo/image/upload/test_asset_1.jpg",
+            SourceType = MediaSourceType.Real,
+            State = MediaAssetState.Active
+        };
+        _db.MediaAssets.Add(asset);
+
+        var recipe = new Recipe { Name = "Cà phê sữa" };
+        _db.Recipes.Add(recipe);
+        await _db.SaveChangesAsync();
+
+        _db.RecipeSteps.Add(new RecipeStep
+        {
+            RecipeId = recipe.Id,
+            Instruction = "Pha cà phê",
+            SortOrder = 1,
+            MediaAssetId = asset.Id
+        });
+        await _db.SaveChangesAsync();
+
+        var model = new MediaIndexModel(_db, _storage, _validator);
+        await model.OnGetAsync(null);
+
+        Assert.Single(model.MediaItems);
+        Assert.Equal(1, model.TotalCount);
+        Assert.Equal(1, model.RealCount);
+        Assert.Equal(0, model.AiCount);
+        Assert.Equal(1, model.MediaItems[0].ReferenceCount);
+        Assert.Contains("Cà phê sữa", model.MediaItems[0].ReferencingRecipeNames);
+    }
+
+    [Fact]
     public async Task Upload_creates_active_media_asset()
     {
         var model = new MediaIndexModel(_db, _storage, _validator);

@@ -77,8 +77,11 @@ public class IndexModel(
             _ => query
         };
 
-        MediaItems = await query
+        var assets = await query
             .OrderByDescending(m => m.CreatedAtUtc)
+            .ToListAsync();
+
+        MediaItems = assets
             .Select(m => new MediaItemViewModel
             {
                 Id = m.Id,
@@ -94,7 +97,7 @@ public class IndexModel(
                     .Distinct()
                     .ToList()
             })
-            .ToListAsync();
+            .ToList();
     }
 
     public async Task<IActionResult> OnPostUploadAsync(IFormFile? file)
