@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 using RecipeCard.Web.Data;
 using RecipeCard.Web.Models;
@@ -134,9 +135,41 @@ public sealed class RecipePdfExportTests : IDisposable
         using var pdfDoc = UglyToad.PdfPig.PdfDocument.Open(bytes);
         Assert.True(pdfDoc.NumberOfPages >= 1);
         var firstPage = pdfDoc.GetPage(1);
-        Assert.True(firstPage.Width > 400);
-        Assert.True(firstPage.Height > 600);
-        Assert.Contains("BẢNG CÔNG THỨC PHA CHẾ", firstPage.Text);
+        Assert.True(firstPage.Width > firstPage.Height);
+        Assert.Contains(recipe.Name, firstPage.Text);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(7)]
+    [InlineData(20)]
+    public void Adaptive_step_layouts_generate_valid_landscape_pdf(int stepCount)
+    {
+        var model = new RecipePdfModel
+        {
+            Title = $"Công thức {stepCount} bước",
+            Ingredients =
+            [
+                new RecipePdfIngredientLine { Stt = 1, Name = "Trà", Quantity = 100, Unit = "ml" }
+            ],
+            Steps = Enumerable.Range(1, stepCount)
+                .Select(stepNumber => new RecipePdfStepLine
+                {
+                    StepNumber = stepNumber,
+                    Instruction = $"Thực hiện thao tác số {stepNumber}."
+                })
+                .ToList()
+        };
+
+        var bytes = new RecipePdfDocument(model).GeneratePdf();
+
+        using var pdfDocument = UglyToad.PdfPig.PdfDocument.Open(bytes);
+        Assert.True(pdfDocument.NumberOfPages >= 1);
+        Assert.All(pdfDocument.GetPages(), page => Assert.True(page.Width > page.Height));
+        var text = string.Join(' ', pdfDocument.GetPages().Select(page => page.Text));
+        Assert.Contains($"Thực hiện thao tác số {stepCount}.", text);
+        Assert.DoesNotContain("LƯU Ý & HƯỚNG DẪN PHỤC VỤ", text);
     }
 
     [Fact]
