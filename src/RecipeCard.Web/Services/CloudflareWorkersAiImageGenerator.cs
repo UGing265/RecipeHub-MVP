@@ -1,6 +1,7 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace RecipeCard.Web.Services;
@@ -10,44 +11,76 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
     private readonly HttpClient _httpClient;
     private readonly CloudflareOptions _options;
     private readonly IImageValidator _validator;
+    private readonly ILogger<CloudflareWorkersAiImageGenerator>? _logger;
 
     public CloudflareWorkersAiImageGenerator(
         HttpClient httpClient,
         IOptions<CloudflareOptions> options,
-        IImageValidator validator)
+        IImageValidator validator,
+        ILogger<CloudflareWorkersAiImageGenerator>? logger = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options.Value;
+        _logger = logger;
     }
 
-    public async Task<GeneratedImage> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
+    public Task<GeneratedImage> GenerateAsync(string prompt, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(prompt))
+        var request = new AiImageGenerationRequest(prompt, Models.AspectRatioPreset.Square1x1, 1024, 1024);
+        return GenerateAsync(request, cancellationToken);
+    }
+
+    public async Task<GeneratedImage> GenerateAsync(AiImageGenerationRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Prompt))
         {
-            throw new ArgumentException("Mô tả tạo ảnh (prompt) không được để trống.", nameof(prompt));
+            throw new ArgumentException("Mô tả tạo ảnh (prompt) không được để trống.", nameof(request));
         }
 
         _options.Validate();
 
         var model = !string.IsNullOrWhiteSpace(_options.Model)
             ? _options.Model
-            : "@cf/black-forest-labs/flux-1-schnell";
+            : "@cf/black-forest-labs/flux-2-klein-4b";
 
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
+        var (width, height) = request.Preset.ToDimensions();
+        if (request.Width > 0 && request.Height > 0)
+        {
+            width = request.Width;
+            height = request.Height;
+        }
 
-        var payload = JsonSerializer.Serialize(new { prompt });
-        request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare FLUX (Preset: {Preset}, {Width}x{Height})",
+            request.Preset.ToDisplayName(), width, height);
+
+        var stopwatch = Stopwatch.StartNew();
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
+
+        // FLUX.2 Klein 4B expects multipart/form-data with prompt, width, height, seed (no steps field)
+        var multipart = new MultipartFormDataContent();
+        multipart.Add(new StringContent(request.Prompt), "prompt");
+        multipart.Add(new StringContent(width.ToString()), "width");
+        multipart.Add(new StringContent(height.ToString()), "height");
+        if (request.Seed.HasValue)
+        {
+            multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
+        }
+
+        httpRequest.Content = multipart;
 
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+            response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseContentRead, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -55,6 +88,7 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         }
         catch (Exception ex)
         {
+            _logger?.LogError("[TẠO ẢNH AI] -> Không thể kết nối đến Cloudflare AI: {Message}", ex.Message);
             throw new InvalidOperationException("Không thể kết nối đến dịch vụ Cloudflare Workers AI.", ex);
         }
 
@@ -77,9 +111,11 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             }
             catch
             {
-                // Fallback to generic message to avoid leaking any raw response structure
+                // Fallback generic
             }
 
+            _logger?.LogError("[TẠO ẢNH AI] -> Tạo ảnh THẤT BẠI ({ElapsedMs}ms): {Error}",
+                stopwatch.ElapsedMilliseconds, userFriendlyError);
             throw new InvalidOperationException(userFriendlyError);
         }
 
@@ -87,12 +123,12 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         var rawBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
         if (rawBytes.Length == 0)
         {
+            _logger?.LogError("[TẠO ẢNH AI] -> Thất bại: Cloudflare không trả về dữ liệu ảnh.");
             throw new InvalidOperationException("Cloudflare AI không trả về dữ liệu ảnh nào.");
         }
 
         var imageBytes = ExtractImageBytes(rawBytes, contentType);
 
-        // Validate image bytes and extract mime type
         ValidatedImageInfo info;
         try
         {
@@ -100,8 +136,12 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         }
         catch (Exception ex)
         {
+            _logger?.LogError("[TẠO ẢNH AI] -> Dữ liệu ảnh trả về không hợp lệ: {Message}", ex.Message);
             throw new InvalidOperationException("Dữ liệu ảnh trả về từ AI không đúng định dạng hình ảnh hợp lệ.", ex);
         }
+
+        _logger?.LogInformation("[TẠO ẢNH AI] -> Đã tạo ảnh THÀNH CÔNG ({ElapsedMs}ms, {KiloBytes} KB).",
+            stopwatch.ElapsedMilliseconds, imageBytes.Length / 1024);
 
         return new GeneratedImage(
             ImageBytes: imageBytes,
@@ -184,7 +224,7 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             }
             catch
             {
-                // Fall back to treating rawBytes as binary image data
+                // Fall back
             }
         }
 

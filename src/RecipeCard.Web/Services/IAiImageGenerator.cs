@@ -9,4 +9,5 @@ public record GeneratedImage(
 public interface IAiImageGenerator
 {
     Task<GeneratedImage> GenerateAsync(string prompt, CancellationToken cancellationToken = default);
+    Task<GeneratedImage> GenerateAsync(AiImageGenerationRequest request, CancellationToken cancellationToken = default);
 }

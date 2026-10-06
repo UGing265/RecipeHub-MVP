@@ -419,8 +419,13 @@ public class AiImageCandidateTests : IDisposable
             return Task.FromResult(new GeneratedImage(
                 ImageBytes: BytesToReturn,
                 MimeType: "image/jpeg",
-                Model: "@cf/black-forest-labs/flux-1-schnell"
+                Model: "@cf/black-forest-labs/flux-2-klein-4b"
             ));
+        }
+
+        public Task<GeneratedImage> GenerateAsync(AiImageGenerationRequest request, CancellationToken cancellationToken = default)
+        {
+            return GenerateAsync(request.Prompt, cancellationToken);
         }
     }
 
