@@ -4,7 +4,7 @@
 
 - Parent: [plan.md](./plan.md)
 - Depends on: [phase-03-recipe-composer.md](./phase-03-recipe-composer.md)
-- Reference: `doc/PRN232.SRS.md:265-274, 408`
+- Reference: `docs/materials/PRN232.SRS.md:265-274, 408`
 
 ## Overview
 

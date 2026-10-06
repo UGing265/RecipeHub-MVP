@@ -111,8 +111,8 @@ No existing plan directory exists. This plan has no blockers.
 
 ## Reference Material
 
-- `doc/PRN232.SRS.md`: broad SRS; this plan deliberately implements only the user-approved core slice.
-- `doc/Bộ công thức Phê La Update 13_07_2026.pdf`: reference for final card content: title, ingredient quantities, ordered instructions, notes, and visual guidance.
+- `docs/materials/PRN232.SRS.md`: broad SRS; this plan deliberately implements only the user-approved core slice.
+- `docs/materials/Bộ công thức Phê La Update 13_07_2026.pdf`: reference for final card content: title, ingredient quantities, ordered instructions, notes, and visual guidance.
 - ASP.NET Core docs: Razor Pages supports browser-form patterns and CRUD scaffolding.
 - EF Core docs: SQLite provider plus `dotnet ef migrations add` / `dotnet ef database update` supports a local relational database file.
 

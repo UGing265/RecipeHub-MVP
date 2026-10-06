@@ -4,7 +4,7 @@
 
 - Parent: [plan.md](./plan.md)
 - Depends on: [phase-01-bootstrap-and-persistence.md](./phase-01-bootstrap-and-persistence.md)
-- Reference: `doc/PRN232.SRS.md:214-223`
+- Reference: `docs/materials/PRN232.SRS.md:214-223`
 
 ## Overview
 

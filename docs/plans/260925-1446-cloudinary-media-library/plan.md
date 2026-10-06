@@ -166,7 +166,7 @@ Bind and validate both option types at startup. Fail fast with local configurati
 
 ## Dependencies
 
-- Completed `plans/260923-2248-recipe-card-core/`; this follow-up supersedes only its local single-step-image decision.
+- Completed `docs/plans/260923-2248-recipe-card-core/`; this follow-up supersedes only its local single-step-image decision.
 - Cloudinary credentials are required before Phase 1 smoke testing.
 - Cloudflare Account ID and API Token are required before Phase 4 smoke testing (free tier).
 - Internet egress to Cloudinary required for upload/PDF; to Cloudflare required only for candidate generation.

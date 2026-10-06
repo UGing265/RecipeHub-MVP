@@ -3,7 +3,7 @@
 ## Context
 
 - Parent: [plan.md](./plan.md)
-- Reference: `doc/PRN232.SRS.md:289-314`
+- Reference: `docs/materials/PRN232.SRS.md:289-314`
 
 ## Overview
 

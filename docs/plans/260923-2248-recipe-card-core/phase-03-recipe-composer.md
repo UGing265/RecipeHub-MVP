@@ -4,7 +4,7 @@
 
 - Parent: [plan.md](./plan.md)
 - Depends on: [phase-02-ingredient-catalog.md](./phase-02-ingredient-catalog.md)
-- Reference: `doc/PRN232.SRS.md:226-248`
+- Reference: `docs/materials/PRN232.SRS.md:226-248`
 
 ## Overview
 

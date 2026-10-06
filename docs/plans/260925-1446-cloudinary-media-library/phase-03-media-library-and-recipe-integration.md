@@ -4,7 +4,7 @@
 
 - Parent: [Cloudinary media library and AI image-candidate demo](./plan.md)
 - Depends on: [Asset, draft data, and legacy cutover](./phase-02-asset-data-and-legacy-cutover.md)
-- UI system: `doc/DESIGN.md` and `AGENTS.md` require Mobbin monochrome, pill interactions, 24px containers, 16px media, hairline borders, no shadows; blue is not a general action color.
+- UI system: `docs/materials/DESIGN.md` and `AGENTS.md` require Mobbin monochrome, pill interactions, 24px containers, 16px media, hairline borders, no shadows; blue is not a general action color.
 
 ## Overview
 
