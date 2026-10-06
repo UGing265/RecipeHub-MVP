@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Mobbin Design System (doc/DESIGN.md implementation)
+   Mobbin Design System (docs/materials/DESIGN.md implementation)
    ========================================================================== */
 
 :root {
@@ -91,7 +91,7 @@ p, .body-text {
 
 /* ==========================================================================
    App Shell Layout (with Sidebar Navigation for Nguyên liệu & Công thức)
-   Pattern: ex-app-shell-row from doc/DESIGN.md
+   Pattern: ex-app-shell-row from docs/materials/DESIGN.md
    ========================================================================== */
 
 .app-shell {
