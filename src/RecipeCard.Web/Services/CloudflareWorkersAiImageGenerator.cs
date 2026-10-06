@@ -82,6 +82,11 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         {
             response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseContentRead, cancellationToken);
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogError("[TẠO ẢNH AI] -> Quá thời gian chờ phản hồi từ Cloudflare AI (Timeout).");
+            throw new InvalidOperationException("Thời gian tạo ảnh từ Cloudflare AI quá lâu (quá 120 giây). Vui lòng thử lại lúc server AI rảnh hơn.", ex);
+        }
         catch (OperationCanceledException)
         {
             throw;

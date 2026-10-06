@@ -35,7 +35,7 @@ builder.Services.AddScoped<RecipeCard.Web.Services.IImageStorageService>(sp =>
 
 builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiImageGenerator, RecipeCard.Web.Services.CloudflareWorkersAiImageGenerator>(client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(60);
+    client.Timeout = TimeSpan.FromSeconds(120);
 });
 builder.Services.AddHttpClient<RecipeCard.Web.Services.CloudflareWorkersAiPromptTranslator>(client =>
 {
