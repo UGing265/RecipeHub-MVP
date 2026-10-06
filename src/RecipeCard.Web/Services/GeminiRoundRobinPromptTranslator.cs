@@ -128,6 +128,11 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
                     continue;
                 }
 
+                if (response.StatusCode == HttpStatusCode.ServiceUnavailable) // 503 Service Unavailable
+                {
+                    _logger?.LogWarning("[DỊCH PROMPT] Gemini bị quá tải tạm thời (HTTP 503), chuyển sang Cloudflare fallback ngay...");
+                    return await _cloudflareFallbackTranslator.TranslateVietnameseToEnglishAsync(vietnamesePrompt, cancellationToken);
+                }
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger?.LogError("[DỊCH PROMPT] -> Lỗi HTTP {StatusCode} từ Gemini.", (int)response.StatusCode);

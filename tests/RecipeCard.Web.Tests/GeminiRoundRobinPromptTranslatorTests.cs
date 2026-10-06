@@ -420,8 +420,7 @@ public class GeminiRoundRobinPromptTranslatorTests
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.InternalServerError)]
-    [InlineData(HttpStatusCode.ServiceUnavailable)]
-    public async Task TranslateVietnameseToEnglishAsync_non_429_fails_immediately_without_rotation_or_fallback(HttpStatusCode statusCode)
+    public async Task TranslateVietnameseToEnglishAsync_client_and_server_error_fails_immediately_without_rotation_or_fallback(HttpStatusCode statusCode)
     {
         var geminiCallCount = 0;
         var cloudflareCalled = false;
@@ -446,6 +445,44 @@ public class GeminiRoundRobinPromptTranslatorTests
         Assert.False(cloudflareCalled);
         Assert.Contains("Gemini AI không thể xử lý yêu cầu lúc này", ex.Message);
         Assert.DoesNotContain("k1", ex.Message);
+    }
+    [Fact]
+    public async Task TranslateVietnameseToEnglishAsync_503_service_unavailable_fallbacks_to_cloudflare_immediately()
+    {
+        var geminiCallCount = 0;
+        var cloudflareCalled = false;
+
+        var translator = CreateTranslator(
+            geminiHandler: _ =>
+            {
+                geminiCallCount++;
+                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+            },
+            apiKeys: ["k1", "k2", "k3"],
+            cloudflareHandler: _ =>
+            {
+                cloudflareCalled = true;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """
+                        {
+                          "result": {
+                            "response": "TARGET: STEP INSTRUCTION\nRECIPE: Oolong Tea"
+                          },
+                          "success": true
+                        }
+                        """,
+                        System.Text.Encoding.UTF8,
+                        "application/json")
+                };
+            });
+
+        var result = await translator.TranslateVietnameseToEnglishAsync(VietnameseInput);
+
+        Assert.Equal(1, geminiCallCount);
+        Assert.True(cloudflareCalled);
+        Assert.Equal("TARGET: STEP INSTRUCTION\nRECIPE: Oolong Tea", result);
     }
 
     [Fact]
