@@ -84,16 +84,16 @@ public class AiImagePromptBuilderTests
         var englishText = "Barista pouring milk foam into a cup";
 
         var stepPrompt = _builder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, englishText);
-        Assert.StartsWith(englishText, stepPrompt);
-        Assert.Contains("Clear beverage preparation process photo", stepPrompt);
+        Assert.Contains(englishText, stepPrompt);
+        Assert.Contains("Clean commercial beverage process photography", stepPrompt);
         Assert.Contains("Only bar professional hands or forearms visible", stepPrompt);
-        Assert.DoesNotContain("Finished plated beverage hero photography", stepPrompt);
+        Assert.DoesNotContain("Commercial food and beverage showcase photography", stepPrompt);
 
         var finalPrompt = _builder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, englishText);
-        Assert.StartsWith(englishText, finalPrompt);
-        Assert.Contains("Finished plated beverage hero photography", finalPrompt);
+        Assert.Contains(englishText, finalPrompt);
+        Assert.Contains("Commercial food and beverage showcase photography", finalPrompt);
         Assert.Contains("No human hands, no people", finalPrompt);
-        Assert.DoesNotContain("Clear beverage preparation process photo", finalPrompt);
+        Assert.DoesNotContain("Clean commercial beverage process photography", finalPrompt);
     }
 
     [Fact]

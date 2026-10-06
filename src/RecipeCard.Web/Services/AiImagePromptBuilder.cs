@@ -32,17 +32,17 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
     public const int MaxUserBriefLength = 500;
     public const int MaxFinalPromptLength = AiPromptTranslationConstants.MaxFinalPromptLength;
     public const string StepCanonicalStyle =
-        "Clear beverage preparation process photo, commercial beverage photography, high resolution, realistic studio lighting, clean neutral bar background, 4k. " +
-        "Depict only the exact action described in the target instruction. " +
-        "Only bar professional hands or forearms visible performing the action; no full person, no face, no head, no body, no provocative posture, no sensual framing. " +
-        "Strictly no extra equipment, no extra machinery, no extra ingredients, and no future preparation steps beyond the target. " +
-        "No text, no letters, no watermark, no labels, no numbers, no words.";
+        "Clean commercial beverage process photography, shot on 85mm lens, realistic studio lighting, clean neutral bar background, 4k. " +
+        "A single pure photograph of the beverage preparation action. " +
+        "Only bar professional hands or forearms visible performing the action; no full person, no face, no head, no body. " +
+        "Strictly no extra equipment, no extra machinery, no extra ingredients beyond the target. " +
+        "Absolutely pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO title, NO banner, NO recipe text, NO poster layout, NO infographic, NO watermark.";
 
     public const string FinalProductCanonicalStyle =
-        "Finished plated beverage hero photography, commercial food and beverage showcase, high resolution, realistic studio lighting, clean neutral background, 4k. " +
-        "Depict only the finished served drink as a complete product ready to enjoy. " +
+        "Commercial food and beverage showcase photography, beautiful single drink hero shot, shot on 85mm lens, realistic soft studio lighting, clean neutral background, 4k. " +
+        "A single pure photograph of the finished served drink ready to enjoy. " +
         "No human hands, no people, no preparation process, no preparation steps, no pouring action, no shaker action, no blender action, no cluttered props. " +
-        "No text, no letters, no watermark, no labels, no numbers, no words.";
+        "Absolutely pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO title, NO banner, NO recipe text, NO poster layout, NO infographic, NO watermark.";
 
     public const string DefaultStyleGuideline = StepCanonicalStyle;
 
@@ -183,7 +183,8 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
             _ => StepCanonicalStyle
         };
 
-        var finalPrompt = $"{cleanEnglish} {style}".Trim();
+        // Placing camera/photographic directives first prevents FLUX from misinterpreting text as a poster
+        var finalPrompt = $"{style} The beverage and recipe details: {cleanEnglish} Remember: pure photograph only, zero text on image.".Trim();
 
         if (finalPrompt.Length > MaxFinalPromptLength)
         {

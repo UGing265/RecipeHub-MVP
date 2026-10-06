@@ -289,7 +289,7 @@ public class AiImageCandidateTests : IDisposable
         // 2. Generator called with translated English + default style guideline
         Assert.Single(_aiGenerator.PromptsReceived);
         var generatorPrompt = _aiGenerator.PromptsReceived[0];
-        Assert.StartsWith("Blend matcha mixture with ice until smooth.", generatorPrompt);
+        Assert.Contains("Blend matcha mixture with ice until smooth.", generatorPrompt);
         Assert.Contains(AiImagePromptBuilder.DefaultStyleGuideline, generatorPrompt);
         Assert.DoesNotContain("Matcha Đá Xay", generatorPrompt);
 
@@ -346,7 +346,7 @@ public class AiImageCandidateTests : IDisposable
         // 2. Generator called with translated English + default style guideline
         Assert.Single(_aiGenerator.PromptsReceived);
         var generatorPrompt = _aiGenerator.PromptsReceived[0];
-        Assert.StartsWith("Pour salted cream foam over coffee.", generatorPrompt);
+        Assert.Contains("Pour salted cream foam over coffee.", generatorPrompt);
         Assert.Contains(AiImagePromptBuilder.DefaultStyleGuideline, generatorPrompt);
 
         // 3. New draft has updated snapshot
