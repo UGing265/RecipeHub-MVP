@@ -137,7 +137,7 @@ public class GeminiRoundRobinPromptTranslatorTests
         Assert.True(root.TryGetProperty("contents", out var contents));
         Assert.Equal("user", contents[0].GetProperty("role").GetString());
         Assert.Equal(VietnameseInput, contents[0].GetProperty("parts")[0].GetProperty("text").GetString());
-        Assert.Equal(150, root.GetProperty("generationConfig").GetProperty("maxOutputTokens").GetInt32());
+        Assert.Equal(AiPromptTranslationConstants.MaxOutputTokens, root.GetProperty("generationConfig").GetProperty("maxOutputTokens").GetInt32());
     }
 
     [Fact]

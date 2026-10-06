@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace RecipeCard.Web.Services;
@@ -11,24 +13,20 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
     private const string GeminiEndpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{GeminiModel}:generateContent";
     private const int MaxRounds = 5;
 
-    private const string SystemInstructionText =
-        "You are a beverage preparation visual prompt engineer for FLUX image generator. " +
-        "Convert the Vietnamese beverage recipe step into a clear, realistic English visual description of the action. " +
-        "Translate Vietnamese F&B terms accurately: 'đường nước' or 'nước đường' to 'sugar syrup', 'đá' or 'đá viên' to 'ice cubes', " +
-        "'ly giấy' to 'paper cup', 'ly thủy tinh' to 'clear glass cup'. " +
-        "Do not output step numbers, prefixes, quotes, markdown, or conversational filler. " +
-        "Output only the English visual action description.";
+    private const string SystemInstructionText = AiPromptTranslationConstants.FaithfulSystemInstruction;
 
     private readonly HttpClient _httpClient;
     private readonly CloudflareWorkersAiPromptTranslator _cloudflareFallbackTranslator;
     private readonly GeminiKeyCursor _keyCursor;
     private readonly GeminiOptions _options;
+    private readonly ILogger<GeminiRoundRobinPromptTranslator>? _logger;
 
     public GeminiRoundRobinPromptTranslator(
         HttpClient httpClient,
         CloudflareWorkersAiPromptTranslator cloudflareFallbackTranslator,
         GeminiKeyCursor keyCursor,
-        IOptions<GeminiOptions> options)
+        IOptions<GeminiOptions> options,
+        ILogger<GeminiRoundRobinPromptTranslator>? logger = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _cloudflareFallbackTranslator = cloudflareFallbackTranslator ?? throw new ArgumentNullException(nameof(cloudflareFallbackTranslator));
@@ -36,6 +34,7 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
         ArgumentNullException.ThrowIfNull(options);
 
         _options = options.Value;
+        _logger = logger;
     }
 
     public async Task<string> TranslateVietnameseToEnglishAsync(
@@ -48,6 +47,9 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
         }
 
         _options.Validate();
+
+        _logger?.LogInformation("[DỊCH PROMPT] Đang dịch: \"{Prompt}\"", vietnamesePrompt);
+        var stopwatch = Stopwatch.StartNew();
 
         var keys = _options.ApiKeys;
         var n = keys.Count;
@@ -76,7 +78,7 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
             },
             generationConfig = new
             {
-                maxOutputTokens = 150
+                maxOutputTokens = AiPromptTranslationConstants.MaxOutputTokens
             }
         });
 
@@ -98,6 +100,7 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
             }
             catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
             {
+                _logger?.LogError("[DỊCH PROMPT] -> Quá thời gian chờ (timeout) sau {ElapsedMs}ms.", stopwatch.ElapsedMilliseconds);
                 throw new InvalidOperationException("Yêu cầu đến dịch vụ Gemini AI bị quá thời gian chờ (timeout).", ex);
             }
             catch (OperationCanceledException)
@@ -106,6 +109,7 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
             }
             catch (Exception ex)
             {
+                _logger?.LogError("[DỊCH PROMPT] -> Không thể kết nối đến Gemini: {Message}", ex.Message);
                 throw new InvalidOperationException("Không thể kết nối đến dịch vụ Gemini AI.", ex);
             }
 
@@ -113,9 +117,11 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
             {
                 if (response.StatusCode == HttpStatusCode.TooManyRequests) // 429
                 {
+                    _logger?.LogWarning("[DỊCH PROMPT] Key #{KeyNumber} bị 429 (giới hạn lượt gọi), đổi key khác...", keyIndex + 1);
                     var isLastAttempt = (attempt == totalAttempts - 1);
                     if (isLastAttempt)
                     {
+                        _logger?.LogWarning("[DỊCH PROMPT] Tất cả key Gemini đều bận, chuyển sang Cloudflare fallback...");
                         return await _cloudflareFallbackTranslator.TranslateVietnameseToEnglishAsync(vietnamesePrompt, cancellationToken);
                     }
 
@@ -124,6 +130,7 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
 
                 if (!response.IsSuccessStatusCode)
                 {
+                    _logger?.LogError("[DỊCH PROMPT] -> Lỗi HTTP {StatusCode} từ Gemini.", (int)response.StatusCode);
                     throw new InvalidOperationException("Dịch vụ Gemini AI không thể xử lý yêu cầu lúc này.");
                 }
 
@@ -148,19 +155,24 @@ public class GeminiRoundRobinPromptTranslator : IAiPromptTranslator
                 var translatedText = ParseGeminiResponse(responseBody);
                 if (string.IsNullOrWhiteSpace(translatedText))
                 {
+                    _logger?.LogError("[DỊCH PROMPT] -> Phản hồi Gemini không có nội dung dịch.");
                     throw new InvalidOperationException("Dịch vụ Gemini AI không trả về kết quả dịch hợp lệ.");
                 }
 
                 var sanitized = SanitizeOutput(translatedText);
                 if (string.IsNullOrWhiteSpace(sanitized))
                 {
+                    _logger?.LogError("[DỊCH PROMPT] -> Kết quả dịch rỗng sau khi làm sạch.");
                     throw new InvalidOperationException("Dịch vụ Gemini AI không trả về kết quả dịch hợp lệ.");
                 }
 
+                _logger?.LogInformation("[DỊCH PROMPT] -> Đã dịch xong ({ElapsedMs}ms): \"{Result}\"",
+                    stopwatch.ElapsedMilliseconds, sanitized);
                 return sanitized;
             }
         }
 
+        _logger?.LogWarning("[DỊCH PROMPT] Hết lượt thử Gemini, chuyển sang Cloudflare fallback...");
         return await _cloudflareFallbackTranslator.TranslateVietnameseToEnglishAsync(vietnamesePrompt, cancellationToken);
     }
 

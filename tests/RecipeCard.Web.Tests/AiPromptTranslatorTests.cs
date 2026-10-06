@@ -68,7 +68,7 @@ public class AiPromptTranslatorTests
         Assert.Contains("beverage", messages[0].GetProperty("content").GetString());
         Assert.Equal("user", messages[1].GetProperty("role").GetString());
         Assert.Equal(VietnameseInput, messages[1].GetProperty("content").GetString());
-        Assert.Equal(150, root.GetProperty("max_tokens").GetInt32());
+        Assert.Equal(AiPromptTranslationConstants.MaxOutputTokens, root.GetProperty("max_tokens").GetInt32());
     }
 
     [Fact]
