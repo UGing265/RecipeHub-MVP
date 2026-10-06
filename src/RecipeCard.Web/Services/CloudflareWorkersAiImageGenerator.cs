@@ -8,6 +8,7 @@ namespace RecipeCard.Web.Services;
 
 public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 {
+    private const string DefaultModel = "@cf/black-forest-labs/flux-2-klein-4b";
     private readonly HttpClient _httpClient;
     private readonly CloudflareOptions _options;
     private readonly IImageValidator _validator;
@@ -44,10 +45,7 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 
         _options.Validate();
 
-        var model = !string.IsNullOrWhiteSpace(_options.Model)
-            ? _options.Model
-            : "@cf/black-forest-labs/flux-2-klein-4b";
-
+        var model = DefaultModel;
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
         var (width, height) = request.Preset.ToDimensions();
@@ -57,7 +55,7 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             height = request.Height;
         }
 
-        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare FLUX (Preset: {Preset}, {Width}x{Height})",
+        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare FLUX.2 Klein 4B (Preset: {Preset}, {Width}x{Height})",
             request.Preset.ToDisplayName(), width, height);
 
         var stopwatch = Stopwatch.StartNew();
@@ -65,32 +63,16 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        // FLUX.2 Klein models require multipart/form-data. Legacy FLUX.1 models require JSON.
-        var isKleinModel = model.Contains("flux-2", StringComparison.OrdinalIgnoreCase)
-            || model.Contains("klein", StringComparison.OrdinalIgnoreCase);
-
-        if (isKleinModel)
+        // FLUX.2 Klein 4B requires multipart/form-data
+        var multipart = new MultipartFormDataContent();
+        multipart.Add(new StringContent(request.Prompt), "prompt");
+        multipart.Add(new StringContent(width.ToString()), "width");
+        multipart.Add(new StringContent(height.ToString()), "height");
+        if (request.Seed.HasValue)
         {
-            var multipart = new MultipartFormDataContent();
-            multipart.Add(new StringContent(request.Prompt), "prompt");
-            multipart.Add(new StringContent(width.ToString()), "width");
-            multipart.Add(new StringContent(height.ToString()), "height");
-            if (request.Seed.HasValue)
-            {
-                multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
-            }
-            httpRequest.Content = multipart;
+            multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
         }
-        else
-        {
-            var jsonBody = JsonSerializer.Serialize(new
-            {
-                prompt = request.Prompt,
-                steps = 4,
-                seed = request.Seed
-            });
-            httpRequest.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
-        }
+        httpRequest.Content = multipart;
 
         HttpResponseMessage response;
         try
