@@ -47,7 +47,7 @@ public class AiImageGeneratorTests
         Assert.NotNull(result);
         Assert.Equal("image/jpeg", result.MimeType);
         Assert.Equal(ValidJpegBytes, result.ImageBytes);
-        Assert.Equal("@cf/black-forest-labs/flux-2-klein-4b", result.Model);
+        Assert.Equal("@cf/bytedance/stable-diffusion-xl-lightning", result.Model);
 
         Assert.NotNull(capturedRequest);
         Assert.Equal("Bearer", capturedRequest.Headers.Authorization?.Scheme);
@@ -83,7 +83,7 @@ public class AiImageGeneratorTests
         Assert.NotNull(result);
         Assert.Equal("image/jpeg", result.MimeType);
         Assert.Equal(ValidJpegBytes, result.ImageBytes);
-        Assert.Equal("@cf/black-forest-labs/flux-2-klein-4b", result.Model);
+        Assert.Equal("@cf/bytedance/stable-diffusion-xl-lightning", result.Model);
     }
 
     [Fact]

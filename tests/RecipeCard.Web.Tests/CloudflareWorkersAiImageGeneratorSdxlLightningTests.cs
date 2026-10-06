@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RecipeCard.Web.Tests;
 
-public class CloudflareWorkersAiImageGeneratorKleinTests
+public class CloudflareWorkersAiImageGeneratorSdxlLightningTests
 {
     private static readonly byte[] ValidJpegBytes = Convert.FromBase64String(
         "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABkAGQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==");
@@ -27,14 +27,14 @@ public class CloudflareWorkersAiImageGeneratorKleinTests
     [InlineData(AspectRatioPreset.StandardLandscape4x3, 1024, 768)]
     [InlineData(AspectRatioPreset.WideLandscape16x9, 1280, 720)]
     [InlineData(AspectRatioPreset.Portrait4x5, 768, 960)]
-    public async Task GenerateAsync_with_preset_sends_multipart_with_exact_dimensions_and_no_steps(
+    public async Task GenerateAsync_with_preset_sends_json_with_exact_dimensions_and_negative_prompt(
         AspectRatioPreset preset, int expectedWidth, int expectedHeight)
     {
         var options = Options.Create(new CloudflareOptions
         {
             AccountId = "cf-acc",
             ApiToken = "cf-tok",
-            Model = "@cf/black-forest-labs/flux-2-klein-4b"
+            Model = "@cf/bytedance/stable-diffusion-xl-lightning"
         });
 
         HttpRequestMessage? capturedRequest = null;
@@ -58,18 +58,19 @@ public class CloudflareWorkersAiImageGeneratorKleinTests
         var result = await generator.GenerateAsync(request);
 
         Assert.NotNull(result);
-        Assert.Equal("@cf/black-forest-labs/flux-2-klein-4b", result.Model);
+        Assert.Equal("@cf/bytedance/stable-diffusion-xl-lightning", result.Model);
 
         Assert.NotNull(capturedRequest);
-        Assert.IsType<MultipartFormDataContent>(capturedRequest.Content);
+        Assert.Equal("application/json", capturedRequest.Content?.Headers.ContentType?.MediaType);
 
         Assert.NotNull(capturedBody);
-        Assert.Contains("name=prompt", capturedBody);
-        Assert.Contains("A refreshing iced peach tea", capturedBody);
-        Assert.Contains("name=width", capturedBody);
-        Assert.Contains(expectedWidth.ToString(), capturedBody);
-        Assert.Contains("name=height", capturedBody);
-        Assert.Contains(expectedHeight.ToString(), capturedBody);
-        Assert.DoesNotContain("name=steps", capturedBody);
+        using var doc = JsonDocument.Parse(capturedBody);
+        var root = doc.RootElement;
+
+        Assert.Equal("A refreshing iced peach tea", root.GetProperty("prompt").GetString());
+        Assert.True(root.TryGetProperty("negative_prompt", out var neg) && !string.IsNullOrEmpty(neg.GetString()));
+        Assert.Equal(expectedWidth, root.GetProperty("width").GetInt32());
+        Assert.Equal(expectedHeight, root.GetProperty("height").GetInt32());
+        Assert.Equal(8, root.GetProperty("num_steps").GetInt32());
     }
 }

@@ -8,7 +8,9 @@ namespace RecipeCard.Web.Services;
 
 public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 {
-    private const string DefaultModel = "@cf/black-forest-labs/flux-2-klein-4b";
+    private const string DefaultModel = "@cf/bytedance/stable-diffusion-xl-lightning";
+    private const string NegativePromptText = "text, watermark, labels, letters, deformed hands, extra fingers, poor quality, bad anatomy, cartoon, 3d render";
+
     private readonly HttpClient _httpClient;
     private readonly CloudflareOptions _options;
     private readonly IImageValidator _validator;
@@ -45,7 +47,10 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 
         _options.Validate();
 
-        var model = DefaultModel;
+        var model = !string.IsNullOrWhiteSpace(_options.Model)
+            ? _options.Model
+            : DefaultModel;
+
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
         var (width, height) = request.Preset.ToDimensions();
@@ -55,7 +60,7 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
             height = request.Height;
         }
 
-        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare FLUX.2 Klein 4B (Preset: {Preset}, {Width}x{Height})",
+        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare SDXL-Lightning (Preset: {Preset}, {Width}x{Height})",
             request.Preset.ToDisplayName(), width, height);
 
         var stopwatch = Stopwatch.StartNew();
@@ -63,16 +68,17 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        // FLUX.2 Klein 4B requires multipart/form-data
-        var multipart = new MultipartFormDataContent();
-        multipart.Add(new StringContent(request.Prompt), "prompt");
-        multipart.Add(new StringContent(width.ToString()), "width");
-        multipart.Add(new StringContent(height.ToString()), "height");
-        if (request.Seed.HasValue)
+        // SDXL-Lightning accepts JSON payload with prompt, width, height, num_steps, negative_prompt
+        var jsonPayload = JsonSerializer.Serialize(new
         {
-            multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
-        }
-        httpRequest.Content = multipart;
+            prompt = request.Prompt,
+            negative_prompt = NegativePromptText,
+            width = width,
+            height = height,
+            num_steps = 8,
+            seed = request.Seed
+        });
+        httpRequest.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
         HttpResponseMessage response;
         try

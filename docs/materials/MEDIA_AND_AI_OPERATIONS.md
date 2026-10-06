@@ -2,7 +2,7 @@
 
 Tài liệu này cung cấp hướng dẫn chi tiết về mặt kỹ thuật, kiến trúc và vận hành cho các tính năng mới được triển khai trong hệ thống **R&D Recipe Hub**:
 1. **Lưu trữ đám mây Cloudinary** (`CloudinaryImageStorageService`).
-2. **Quy trình sinh ảnh ứng viên bằng Cloudflare Workers AI** (Mô hình `@cf/black-forest-labs/flux-2-klein-4b` native với 4 preset tỷ lệ khung hình và cơ chế ứng viên tạm thời 30 phút).
+2. **Quy trình sinh ảnh ứng viên bằng Cloudflare Workers AI** (Mô hình `@cf/bytedance/stable-diffusion-xl-lightning` native trong gói 10.000 Neurons miễn phí/ngày, hỗ trợ 4 preset tỷ lệ khung hình, phản hồi siêu tốc 3s và cơ chế ứng viên tạm thời 30 phút).
 3. **Ảnh thành phẩm đại diện công thức (Hero Product Image)** hỗ trợ 3 nguồn (Upload thật, Thư viện media, AI sinh ảnh) hiển thị đồng bộ trên Edit, Index, Preview và PDF (QuestPDF).
 3. **Thư viện tài nguyên số tập trung** (`/Media/Index` theo ngôn ngữ thiết kế Mobbin).
 4. **Công cụ CLI di chuyển dữ liệu ảnh bước thực hiện** (`--migrate-step-images --confirm`).
@@ -50,8 +50,7 @@ Tài liệu này cung cấp hướng dẫn chi tiết về mặt kỹ thuật, k
                |                 +-----------------------------------------------+
                |                 | IAiImageGenerator                             |
                |                 | (CloudflareWorkersAiImageGenerator)           |
-               |                 | - REST API v4, Bearer token                   |
-  | - Model: @cf/black-forest-labs/flux-2-klein-4b (multipart: prompt, width, height, seed) |
+  | - Model: @cf/bytedance/stable-diffusion-xl-lightning (JSON: prompt, negative_prompt, width, height, num_steps: 8) |
                |                 +-----------------------+-----------------------+
 |               |                                        v                          |
 |               |               +-------------------------------------------------+ |
@@ -172,17 +171,17 @@ Khi lưu trữ tài nguyên số:
 ## 4. Tích hợp Cloudflare Workers AI & Quy trình ứng viên ảnh (Candidate Workflow)
 
 ### 4.1 Mô hình và Endpoint
-- **Mô hình**: `@cf/black-forest-labs/flux-2-klein-4b` (Mô hình FLUX.2 native chạy trên Cloudflare Workers AI, 4 bước cố định, tận dụng gói miễn phí 10.000 Neurons/ngày).
-- **Endpoint**: `https://api.cloudflare.com/client/v4/accounts/{AccountId}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`
+- **Mô hình**: `@cf/bytedance/stable-diffusion-xl-lightning` (Mô hình SDXL chưng cất siêu tốc của ByteDance chạy native trên Cloudflare Workers AI, hoàn toàn miễn phí trong hạn mức 10.000 Neurons/ngày).
+- **Endpoint**: `https://api.cloudflare.com/client/v4/accounts/{AccountId}/ai/run/@cf/bytedance/stable-diffusion-xl-lightning`
 - **Phương thức**: `POST`
 - **Xác thực**: `Authorization: Bearer {ApiToken}`
-- **Định dạng gửi**: `multipart/form-data` chứa `prompt`, `width`, `height`, và `seed` tùy chọn (tuyệt đối không gửi `steps`).
+- **Định dạng gửi**: `application/json` chứa `prompt`, `negative_prompt`, `width`, `height`, `num_steps: 8`, và `seed` tùy chọn.
 - **4 Preset tỷ lệ khung hình**:
   - **Vuông (1:1)**: `1024 × 1024` (mặc định cho từng bước pha chế)
   - **Ngang chuẩn (4:3)**: `1024 × 768`
   - **Ngang rộng (16:9)**: `1280 × 720` (mặc định cho ảnh đại diện thành phẩm)
   - **Dọc (4:5)**: `768 × 960`
-- **Kết quả trả về**: Base64 JSON `result.image` hoặc dữ liệu nhị phân ảnh trực tiếp. Hệ thống tự động giải mã base64 và xác thực magic bytes trước khi lưu nháp.
+- **Kết quả trả về**: Định dạng `image/png` trực tiếp hoặc JSON base64. Tốc độ sinh ảnh thực tế chỉ ~3.3 giây/ảnh.
 ### 4.2 Lớp chuẩn hóa và dịch Prompt: `AiImagePromptBuilder` & `IAiPromptTranslator`
 Để mô hình FLUX hiểu chính xác nội dung công thức tiếng Việt nhưng vẫn đảm bảo phong cách thương hiệu R&D:
 1. **Tách nguồn tiếng Việt**: `AiImagePromptBuilder.BuildVietnameseSourcePrompt` tổng hợp tên công thức (`Recipe.Name`), thứ tự bước (`SortOrder`), nội dung hướng dẫn (`Instruction`), và ghi chú trực quan tùy chọn (`userBrief` giới hạn 500 ký tự) hoàn toàn bằng tiếng Việt.
