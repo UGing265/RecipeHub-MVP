@@ -13,9 +13,17 @@ public class AiImageDraft
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public int RecipeStepId { get; set; }
+    public int RecipeId { get; set; }
 
-    public RecipeStep RecipeStep { get; set; } = null!;
+    public Recipe Recipe { get; set; } = null!;
+
+    public int? RecipeStepId { get; set; }
+
+    public RecipeStep? RecipeStep { get; set; }
+
+    public AiDraftTargetKind TargetKind { get; set; } = AiDraftTargetKind.StepInstruction;
+
+    public AspectRatioPreset AspectRatioPreset { get; set; } = AspectRatioPreset.Square1x1;
 
     public string PromptSnapshot { get; set; } = string.Empty;
 

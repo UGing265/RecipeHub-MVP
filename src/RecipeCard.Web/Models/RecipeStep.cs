@@ -12,6 +12,8 @@ public sealed class RecipeStep
 
     public int? MediaAssetId { get; set; }
     public MediaAsset? MediaAsset { get; set; }
+    public AspectRatioPreset ImageAspectRatioPreset { get; set; } = AspectRatioPreset.Square1x1;
+
 
     public ICollection<AiImageDraft> AiImageDrafts { get; set; } = [];
 }

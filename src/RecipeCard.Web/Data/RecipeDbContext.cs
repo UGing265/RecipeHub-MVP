@@ -47,6 +47,10 @@ public class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbCont
                 .WithOne(ri => ri.Recipe)
                 .HasForeignKey(ri => ri.RecipeId)
                 .OnDelete(DeleteBehavior.Cascade);
+            b.HasOne(r => r.FinalMediaAsset)
+                .WithMany()
+                .HasForeignKey(r => r.FinalMediaAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             b.HasMany(r => r.Steps)
                 .WithOne(s => s.Recipe)
@@ -126,7 +130,7 @@ public class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbCont
             b.HasKey(d => d.Id);
             b.Property(d => d.PromptSnapshot)
                 .IsRequired()
-                .HasMaxLength(2000);
+                .HasMaxLength(8000);
             b.Property(d => d.UserBrief)
                 .HasMaxLength(500);
             b.Property(d => d.Model)
@@ -136,7 +140,13 @@ public class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbCont
                 .IsRequired()
                 .HasMaxLength(255);
 
+            b.HasIndex(d => d.RecipeId);
             b.HasIndex(d => d.RecipeStepId);
+
+            b.HasOne(d => d.Recipe)
+                .WithMany()
+                .HasForeignKey(d => d.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             b.HasOne(d => d.RecipeStep)
                 .WithMany(s => s.AiImageDrafts)

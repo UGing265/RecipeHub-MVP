@@ -94,6 +94,7 @@ public class AiImageDraftTests : IDisposable
 
         var draft = new AiImageDraft
         {
+            RecipeId = recipe.Id,
             RecipeStepId = step.Id,
             PromptSnapshot = "Test prompt",
             TemporaryFileName = "temp.jpg",

@@ -383,7 +383,10 @@ public class EditModel(
         var draft = new AiImageDraft
         {
             Id = draftId,
+            RecipeId = id,
             RecipeStepId = stepId,
+            TargetKind = AiDraftTargetKind.StepInstruction,
+            AspectRatioPreset = step.ImageAspectRatioPreset,
             PromptSnapshot = prompt,
             UserBrief = string.IsNullOrWhiteSpace(userBrief) ? null : userBrief.Trim(),
             Model = generated.Model,
@@ -392,7 +395,6 @@ public class EditModel(
             CreatedAtUtc = DateTime.UtcNow,
             ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
         };
-
         _db.AiImageDrafts.Add(draft);
         await _db.SaveChangesAsync();
 
@@ -496,7 +498,10 @@ public class EditModel(
         var newDraft = new AiImageDraft
         {
             Id = newDraftId,
+            RecipeId = id,
             RecipeStepId = step.Id,
+            TargetKind = AiDraftTargetKind.StepInstruction,
+            AspectRatioPreset = step.ImageAspectRatioPreset,
             PromptSnapshot = prompt,
             UserBrief = string.IsNullOrWhiteSpace(userBrief) ? null : userBrief.Trim(),
             Model = generated.Model,
@@ -505,7 +510,6 @@ public class EditModel(
             CreatedAtUtc = DateTime.UtcNow,
             ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
         };
-
         _db.AiImageDrafts.Add(newDraft);
         await _db.SaveChangesAsync();
 

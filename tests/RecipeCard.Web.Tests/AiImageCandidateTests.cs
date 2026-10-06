@@ -143,6 +143,7 @@ public class AiImageCandidateTests : IDisposable
 
         var draft = new AiImageDraft
         {
+            RecipeId = recipe.Id,
             RecipeStepId = step.Id,
             PromptSnapshot = "Prompt 1",
             TemporaryFileName = "draft1.jpg",
@@ -179,6 +180,7 @@ public class AiImageCandidateTests : IDisposable
         var draft = new AiImageDraft
         {
             Id = draftId,
+            RecipeId = recipe.Id,
             RecipeStepId = step.Id,
             PromptSnapshot = "Prompt",
             TemporaryFileName = tempFileName,
@@ -221,6 +223,7 @@ public class AiImageCandidateTests : IDisposable
         var draft = new AiImageDraft
         {
             Id = draftId,
+            RecipeId = recipe.Id,
             RecipeStepId = step.Id,
             PromptSnapshot = "Prompt to accept",
             TemporaryFileName = tempFileName,
@@ -316,6 +319,7 @@ public class AiImageCandidateTests : IDisposable
         var initialDraft = new AiImageDraft
         {
             Id = draftId,
+            RecipeId = recipe.Id,
             RecipeStepId = step.Id,
             PromptSnapshot = "Initial English prompt",
             TemporaryFileName = tempFileName,
