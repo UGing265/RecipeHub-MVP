@@ -6,7 +6,7 @@
 
 ## Context
 
-User requested clarifying the core value of the R&D Recipe Hub project defined in `doc/PRN232.SRS.md`, compared it against reference document `doc/Bộ công thức Phê La Update 13_07_2026.pdf`, and chose the tech stack and implementation path.
+User requested clarifying the core value of the R&D Recipe Hub project defined in `docs/materials/PRN232.SRS.md`, compared it against reference document `docs/materials/Bộ công thức Phê La Update 13_07_2026.pdf`, and chose the tech stack and implementation path.
 
 ## Decisions Made
 
@@ -22,7 +22,7 @@ User requested clarifying the core value of the R&D Recipe Hub project defined i
    - **PDF Generation:** QuestPDF using fixed Phê La-inspired operational card layout.
 
 3. **Plan Location:**
-   - Created in `plans/260923-2248-recipe-card-core/`.
+   - Created in `docs/plans/260923-2248-recipe-card-core/`.
    - Divided into 4 executable phases:
      - `phase-01-bootstrap-and-persistence.md`
      - `phase-02-ingredient-catalog.md`

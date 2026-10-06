@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-25
 - **Branch:** main
-- **Plan:** `plans/260925-1446-cloudinary-media-library/plan.md`
+- **Plan:** `docs/plans/260925-1446-cloudinary-media-library/plan.md`
 - **Status:** Completed
 
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Cloudinary media library planning journal"
 date: 2026-09-25
-plan: "plans/260925-1446-cloudinary-media-library/plan.md"
+plan: "docs/plans/260925-1446-cloudinary-media-library/plan.md"
 ---
 
 # Cloudinary media library planning journal
