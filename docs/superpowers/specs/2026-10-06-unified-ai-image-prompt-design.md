@@ -1,8 +1,8 @@
-# Thiết kế prompt thống nhất cho ảnh hướng dẫn pha chế
+# Thiết kế prompt thống nhất và ảnh thành phẩm công thức
 
 - Ngày: 2026-10-06
-- Trạng thái: Đề xuất thiết kế, chờ người dùng duyệt tài liệu
-- Phạm vi: Luồng tạo và tạo lại ảnh AI cho từng bước công thức
+- Trạng thái: Đề xuất thiết kế, chờ người dùng duyệt tài liệu cập nhật
+- Phạm vi: Ảnh AI cho từng bước, ảnh thành phẩm cấp công thức, tỷ lệ ảnh và logging
 
 ## 1. Vấn đề
 
@@ -12,14 +12,18 @@ Log phát triển hiện cũng hiển thị SQL dài từ EF Core. Các service 
 
 ## 2. Mục tiêu
 
-1. Mỗi ảnh chỉ minh họa đúng hành động của bước hiện tại.
-2. Gemini dịch đầy đủ dữ liệu, không tóm tắt, sáng tác hoặc tự chọn phong cách.
-3. Context gồm tên công thức, toàn bộ nguyên liệu, tất cả bước trước, bước hiện tại và yêu cầu hình ảnh tùy chọn.
-4. Không gửi bước tương lai, ảnh cũ, media library hoặc prompt của draft cũ làm context.
-5. Server sở hữu template tạo ảnh FLUX để style ổn định giữa mọi công thức.
-6. Không lọc keyword để đoán nguyên liệu, dụng cụ hoặc loại thao tác.
-7. Không thêm field dụng cụ vào database hoặc UI. Người dùng mô tả ly, máy hoặc dụng cụ trong ô `Yêu cầu thêm cho ảnh` hiện có.
-8. Tắt log SQL mức Information và không log full prompt, API key hoặc raw response.
+1. Ảnh bước chỉ minh họa các hành động được nêu trong bước hiện tại; không thêm, thay hoặc bỏ hành động.
+2. Ảnh thành phẩm là hero sạch của món hoàn chỉnh, không hiển thị chuỗi thao tác, người hoặc đạo cụ thừa.
+3. Gemini và Llama dịch đầy đủ dữ liệu, không tóm tắt, sáng tác hoặc tự chọn phong cách.
+4. Context ảnh bước gồm tên công thức, toàn bộ nguyên liệu, tất cả bước trước, bước hiện tại và yêu cầu hình ảnh tùy chọn.
+5. Context ảnh thành phẩm gồm tên, toàn bộ nguyên liệu, toàn bộ quy trình và yêu cầu hình ảnh tùy chọn.
+6. Server sở hữu hai template FLUX cố định: step instructional và final-product hero.
+7. Không lọc keyword để đoán nguyên liệu, dụng cụ hoặc loại thao tác.
+8. Không thêm field dụng cụ. Người dùng mô tả ly, máy hoặc dụng cụ trong ô `Yêu cầu thêm cho ảnh`.
+9. Hỗ trợ upload, chọn thư viện và AI cho ảnh thành phẩm.
+10. Hiển thị ảnh thành phẩm tại Edit, Index, Preview và PDF.
+11. Hỗ trợ preset kích thước dễ hiểu thay vì bắt người dùng nhập pixel.
+12. Tắt log SQL mức Information và không log full prompt, API key hoặc raw response.
 
 ## 3. Kiến trúc được chọn
 
@@ -27,43 +31,55 @@ Log phát triển hiện cũng hiển thị SQL dài từ EF Core. Các service 
 Recipe data từ SQLite
   ├─ Tên công thức
   ├─ Toàn bộ nguyên liệu + định lượng + đơn vị
-  ├─ Các bước có SortOrder < bước hiện tại
-  ├─ Bước hiện tại
+  ├─ Step target: bước trước + bước hiện tại
+  ├─ Final target: toàn bộ quy trình
   └─ Yêu cầu thêm tùy chọn
           ↓
-`AiImagePromptBuilder` gom dữ liệu tiếng Việt theo một cấu trúc cố định.
+AiImagePromptBuilder tạo source prompt có cấu trúc theo target
           ↓
-`IAiPromptTranslator` dịch nguyên nội dung sang tiếng Anh:
-Gemini là nguồn chính; Cloudflare Llama chỉ dự phòng sau khi hết lượt 429.
+IAiPromptTranslator dịch nguyên nội dung sang tiếng Anh:
+Gemini là nguồn chính; Cloudflare Llama chỉ dự phòng sau khi hết lượt 429
           ↓
-`AiImagePromptBuilder` ghép bản dịch với khối hướng dẫn FLUX cố định.
+AiImagePromptBuilder ghép canonical prompt theo target:
+StepInstruction hoặc FinalProductHero
           ↓
-Cloudflare FLUX.1 Schnell tạo ảnh.
+Cloudflare FLUX.2 Klein 4B tạo ảnh đúng width/height preset
           ↓
-`AiImageDraft.PromptSnapshot` lưu nguyên prompt đã gửi cho FLUX.
+AiImageDraft lưu prompt, target và preset để người dùng duyệt
+          ↓
+MediaAsset được chấp nhận:
+RecipeStep.MediaAssetId hoặc Recipe.FinalMediaAssetId
 ```
 
-Mọi AI ở bước dịch chỉ được dịch. Chúng không quyết định nội dung hoặc phong cách ảnh. FLUX tạo ảnh từ prompt hoàn chỉnh. Server quyết định cấu trúc prompt và phong cách chung.
+Mọi AI ở bước dịch chỉ được dịch. Chúng không quyết định nội dung hoặc phong cách ảnh. FLUX tạo ảnh từ prompt hoàn chỉnh. Server quyết định cấu trúc, target và phong cách chung.
 
 ## 4. Dữ liệu đầu vào
 
-Khi tạo ảnh cho bước hiện tại, hệ thống dùng chính `currentStep.SortOrder` làm mốc và tải:
+### 4.1. Ảnh bước
+
+Hệ thống dùng `currentStep.SortOrder` làm mốc và tải:
 
 - `Recipe.Name`.
 - Mọi `RecipeIngredient`, kèm `Ingredient.Name`, `Quantity`, `DefaultUnit`.
 - Mọi `RecipeStep` có `SortOrder < currentStep.SortOrder`, sắp xếp tăng dần.
-- `currentStep` làm hành động duy nhất cần minh họa. Unique index `(RecipeId, SortOrder)` bảo đảm một công thức không có hai bước cùng thứ tự.
+- `currentStep`; mọi hành động được ghi trong bước này đều phải được giữ.
 - `userBrief` nếu người dùng nhập.
 
-Không tải bước có `SortOrder > currentStep.SortOrder` cho prompt. Không lấy `PromptSnapshot`, ảnh hoặc draft trước làm context.
+Không tải bước tương lai, `PromptSnapshot`, ảnh hoặc draft trước làm context.
 
-Cả `GenerateAiImage` và `RegenerateAiImage` dùng cùng một hàm dựng prompt. Form tạo lại hiện điền sẵn `draft.UserBrief`. Nếu request không có field `userBrief`, dùng lại giá trị cũ; nếu request có field nhưng giá trị rỗng, xóa yêu cầu cũ.
+### 4.2. Ảnh thành phẩm
+
+Hệ thống tải tên công thức, toàn bộ nguyên liệu, toàn bộ quy trình theo `SortOrder`, `GeneralNote` và `userBrief`. Toàn bộ quy trình chỉ mô tả trạng thái thành phẩm; FLUX không được dựng lại chuỗi thao tác.
+
+Generate và Regenerate theo cùng một builder cho từng target. Form tạo lại điền sẵn `draft.UserBrief`. Request thiếu field `userBrief` thì dùng lại giá trị cũ; request có field rỗng thì chủ động xóa yêu cầu cũ.
 
 ## 5. Prompt nguồn tiếng Việt
 
-Server tạo đúng các section sau:
+Server tạo source prompt có section cố định. Ảnh bước dùng:
 
 ```text
+TARGET: STEP_INSTRUCTION
+
 RECIPE:
 Matcha Hân Nè
 
@@ -77,14 +93,35 @@ PREVIOUS STEPS — CONTEXT ONLY:
 1. Cho Matcha và nước nóng vào cốc, khuấy đều.
 2. Cho sữa và đường nước vào ly phục vụ.
 
-CURRENT STEP — ONLY ACTION TO ILLUSTRATE:
-3. Thêm hỗn hợp Matcha vào ly.
+CURRENT STEP — ONLY ACTIONS TO ILLUSTRATE:
+3. Thêm hỗn hợp Matcha vào ly rồi khuấy nhẹ.
 
 USER VISUAL REQUIREMENTS:
 Sử dụng ly thủy tinh 350 ml, góc nhìn từ trên xuống.
 ```
 
-Section `USER VISUAL REQUIREMENTS` được bỏ nếu không có nội dung. Không âm thầm cắt tên, nguyên liệu, định lượng, bước hoặc yêu cầu thêm.
+Ảnh thành phẩm dùng:
+
+```text
+TARGET: FINAL_PRODUCT
+
+RECIPE:
+Matcha Hân Nè
+
+INGREDIENTS:
+[toàn bộ nguyên liệu]
+
+FULL PROCESS — FINAL STATE CONTEXT ONLY:
+[toàn bộ quy trình theo thứ tự]
+
+GENERAL NOTE:
+[ghi chú chung nếu có]
+
+USER VISUAL REQUIREMENTS:
+[yêu cầu tùy chọn]
+```
+
+Section tùy chọn được bỏ khi không có nội dung. Không âm thầm cắt tên, nguyên liệu, định lượng, bước hoặc yêu cầu thêm.
 
 ## 6. System prompt Gemini
 
@@ -99,50 +136,74 @@ Rules:
   names while preserving their full meaning.
 - Preserve every ingredient, quantity, unit, vessel, preparation state,
   action, and user instruction.
-- Preserve the distinction between CONTEXT ONLY and CURRENT ACTION.
+- Preserve every action explicitly written in CURRENT STEP.
+- Never add, remove, replace, merge, or reinterpret actions.
+- Preserve the distinction between CONTEXT ONLY and target content.
 - Preserve all section labels and their original order.
-- Never summarize, shorten, embellish, reinterpret, or omit information.
+- Never summarize, shorten, embellish, or omit information.
 - Never infer ingredients, quantities, equipment, vessels, actions,
-  colors, textures, or future steps.
+  colors, textures, people, or future steps.
+- If information remains unspecified, translate it neutrally.
 - Output only the translated structured content.
 ```
 
-Trong tài liệu này, “dịch đầy đủ” nghĩa là giữ nguyên mọi thông tin đầu vào. AI không được bỏ chi tiết, rút gọn hoặc tự thêm nội dung.
+Cả hai adapter (Gemini và Llama) dùng chung một chuỗi system instruction được định nghĩa tập trung ở một hằng số chung (ví dụ `AiPromptTranslationConstants.SystemInstruction`), bảo đảm không lệch nhau. “Dịch đầy đủ” nghĩa là giữ nguyên mọi thông tin đầu vào, không bỏ, rút gọn hoặc tự thêm. Đây là quy tắc ngôn ngữ, không phải code lọc keyword.
 
-Adapter kiểm tra phản hồi không rỗng và còn đủ các section bắt buộc; nó không thể tự chứng minh mọi ý nghĩa đã được dịch chính xác. Độ trung thành về nội dung được kiểm tra bằng contract tests với dữ liệu đại diện và benchmark thủ công. Chỉ HTTP 429 mới được thử key tiếp theo. Một vòng là thử mỗi key cấu hình đúng một lần; năm vòng tương đương tối đa `5 × số key` request. Sau khi mọi request đều 429, Cloudflare Llama dịch dự phòng đúng một lần. Lỗi khác dừng ngay và không gọi FLUX.
+`generationConfig.maxOutputTokens` của Gemini tăng từ 150 lên 4.096 để full-context không bị cắt. Adapter kiểm tra phản hồi không rỗng và chứa đủ các nhãn section bắt buộc (`TARGET:`, `RECIPE:`, v.v.) bằng kiểm tra nhãn chuỗi; độ trung thành ngữ nghĩa được bảo đảm bằng contract tests và benchmark. Llama được gọi đúng một lần duy nhất sau khi toàn bộ `5 × số key` lượt Gemini đều nhận HTTP 429; nếu Llama cũng thất bại (bất kỳ lỗi gì), hệ thống dừng ngay và không gọi FLUX. Lỗi non-429 ở Gemini dừng ngay lập tức.
 
-## 7. Canonical prompt FLUX
+## 7. Canonical prompts FLUX
 
-Server nối dữ liệu tiếng Anh đã dịch với block cố định:
+Server nối bản dịch với đúng một block theo target.
+
+### 7.1. Ảnh bước
 
 ```text
-The CURRENT STEP is the only action to depict.
+Depict only the actions explicitly stated in CURRENT STEP.
+Do not add, replace, combine, or omit preparation actions.
 
-Use the RECIPE, INGREDIENTS, and PREVIOUS STEPS only to understand
-the beverage state immediately before the current action.
+Use RECIPE, INGREDIENTS, and PREVIOUS STEPS only to understand the
+beverage state immediately before CURRENT STEP.
+The target vessel, contents, ingredient color, texture, and physical
+form must follow that context. If details remain unknown, use a simple
+neutral unbranded vessel and minimal ordinary tool; do not invent details.
 
-Professional café preparation instructional photography.
-Clean commercial barista workstation.
-Photorealistic ingredients, liquids, vessels, hands, and equipment.
-Close, readable composition focused on the active preparation area.
-Neutral daylight-balanced studio lighting.
-Natural proportions and physically plausible liquid behavior.
-Consistent visual appearance across the recipe image series.
+Show only hands and forearms required for the stated actions.
+No face, full person, body, customer, model, bystander, sexualized pose,
+revealing clothing, or unrelated human figure.
 
-Follow USER VISUAL REQUIREMENTS when provided, except when they conflict
-with the current action, recipe ingredients, or the strict rules below.
-Specialized machines, vessels, or tools may appear only when explicitly
-named in the recipe context, current step, or user visual requirements,
-and only when relevant to the current action.
+Professional café instructional photography, clean commercial barista
+workstation, close readable composition, neutral daylight-balanced
+lighting, natural proportions, realistic liquid behavior, and consistent
+visual appearance across the recipe series.
 
-Do not repeat previous actions.
-Do not depict future actions.
-Do not add ingredients absent from the recipe.
-No unrelated café props, brand names, logos, text, labels, watermark,
-duplicate tools, distorted hands, or physically impossible equipment.
+USER VISUAL REQUIREMENTS apply only when they do not conflict with recipe
+facts or these strict rules. No prior/future actions, extra ingredients,
+garnishes, colors, specialized machines, unrelated props, brand names,
+logos, text, labels, watermarks, duplicate hands/tools, extra fingers,
+malformed vessels, background people, or impossible equipment.
 ```
 
-Đây là một khung cố định có các phần dữ liệu thay đổi theo công thức, không phải một câu bất biến. Khối hướng dẫn được tham khảo từ tài liệu công khai về cách mô tả chủ thể, bối cảnh, phong cách, ánh sáng và bố cục. Ứng dụng dùng FLUX.1 Schnell, nên phải kiểm tra kết quả trực tiếp trên model này. Hướng dẫn dành cho phiên bản FLUX khác không phải yêu cầu bắt buộc của hệ thống.
+### 7.2. Ảnh thành phẩm
+
+```text
+Create one clean hero product photograph of the completed recipe.
+Use RECIPE, INGREDIENTS, FULL PROCESS, and GENERAL NOTE only to determine
+the final beverage, vessel, layers, texture, color, ice, foam, and garnish.
+Do not depict preparation actions, hands, people, machines, ingredient
+containers, or unrelated café props.
+
+The finished beverage is the only subject. Professional café product
+photography, clean neutral barista counter, balanced composition,
+daylight-neutral studio lighting, realistic materials and liquid behavior,
+and consistent visual appearance with the recipe step series.
+
+USER VISUAL REQUIREMENTS apply only when they do not conflict with recipe
+facts or these strict rules. No extra ingredients, invented toppings,
+brand names, logos, text, labels, watermarks, duplicate vessels,
+malformed glassware, background people, or sexualized content.
+```
+
+Hai block là quy tắc tổng quát, không chứa `if/Contains` theo từ khóa và không hard-code từng loại đồ uống.
 
 ## 8. Dụng cụ và yêu cầu nâng cao
 
@@ -157,17 +218,75 @@ góc máy ngang tầm tách.
 
 Nếu không có yêu cầu thêm, prompt không chủ động chỉ định máy hoặc dụng cụ chuyên biệt. Dụng cụ hoặc vật chứa được nêu trong tên công thức, nguyên liệu, bước trước hoặc bước hiện tại được giữ qua bản dịch; FLUX chỉ được dùng chúng khi còn liên quan tới trạng thái và hành động hiện tại.
 
-## 9. Lưu final prompt
+## 9. FLUX.2 Klein 4B và preset kích thước
 
-`AiImageDraft.PromptSnapshot` lưu nguyên prompt tiếng Anh đã gửi cho FLUX. Giới hạn tăng từ 2.000 lên 8.000 ký tự. Đây là mức lưu mới, không phải bảo đảm rằng mọi công thức bất kỳ đều sẽ vừa.
+Model ảnh duy nhất trong scope:
 
-Cấu trúc bảng SQLite và cấu hình EF phải được cập nhật theo giới hạn mới. Giới hạn 500 ký tự của `userBrief` không đổi.
+```text
+@cf/black-forest-labs/flux-2-klein-4b
+```
 
-Nếu prompt hoàn chỉnh vượt 8.000 ký tự, hệ thống báo lỗi trước khi gọi FLUX. Hệ thống không tự cắt dữ liệu.
+Đây là model native Workers AI, dùng quota Neurons của Cloudflare. Request đổi từ JSON FLUX.1 sang `multipart/form-data` gồm `prompt`, `width`, `height` và `seed` tùy chọn. Không gửi `steps` vì Klein 4B cố định bốn bước. Response base64 được decode, kiểm tra magic bytes rồi đi qua storage hiện có.
 
-## 10. Logging
+`IAiImageGenerator.GenerateAsync` đổi signature thành nhận `AiImageGenerationRequest` thay vì chuỗi prompt đơn lẻ:
 
-Cấu hình mức log:
+```text
+AiImageGenerationRequest
+  Prompt
+  AspectRatioPreset (enum trong Models/Services)
+  Width
+  Height
+  Seed (optional)
+```
+
+Request gửi tới Cloudflare Workers AI dùng multipart/form-data với các field: `prompt`, `width`, `height`, và `seed` nếu có; không gửi field `steps` vì Klein 4B không chấp nhận.
+
+UI chỉ hiển thị preset:
+
+| Nhãn | Tỷ lệ | Kích thước |
+|---|---:|---:|
+| Vuông | 1:1 | 1024×1024 |
+| Ngang chuẩn | 4:3 | 1024×768 |
+| Ngang rộng | 16:9 | 1280×720 |
+| Dọc | 4:5 | 768×960 |
+
+Không cho nhập pixel tùy ý. Preset áp dụng cho ảnh bước và ảnh thành phẩm. Ảnh AI được tạo native theo kích thước chọn, không tạo vuông rồi crop. Với ảnh upload hoặc thư viện có tỷ lệ khác, giữ nguyên bytes và dùng preset làm khung crop không phá hủy tại Edit, Index, Preview và PDF.
+
+## 10. Ảnh thành phẩm và vòng đời media
+
+### 10.1. Quan hệ dữ liệu
+
+- `Recipe.FinalMediaAssetId` là FK nullable tới `MediaAsset`.
+- `Recipe.FinalImageAspectRatioPreset` lưu preset đang hiển thị.
+- `RecipeStep.ImageAspectRatioPreset` lưu preset của ảnh bước.
+- `AiImageDraft.RecipeId` là FK bắt buộc.
+- `AiImageDraft.RecipeStepId` chuyển thành nullable.
+- `AiImageDraft.TargetKind` (enum: `StepInstruction`, `FinalProduct`).
+- `AiImageDraft.AspectRatioPreset` lưu lựa chọn lúc generate.
+
+Migration backfill: mọi draft hiện có (kể cả Generated, Accepted, Expired) được gán `RecipeId` suy ra từ `RecipeStep.RecipeId`, và `TargetKind = StepInstruction`. Ràng buộc hợp lệ (draft step phải có `RecipeStepId`, draft final-product không có `RecipeStepId`) được kiểm tra ở application layer khi tạo/nhận draft.
+### 10.2. Nguồn ảnh thành phẩm
+
+Trang Edit có khu vực `Ảnh thành phẩm` hỗ trợ:
+
+1. Upload ảnh thật qua validation/storage hiện có.
+2. Chọn một `MediaAsset` từ thư viện.
+3. Tạo ảnh AI thành phẩm rồi Accept/Discard.
+
+Mỗi recipe có tối đa một ảnh thành phẩm active. Thay ảnh chỉ đổi liên kết; không tự xóa `MediaAsset` cũ vì asset có thể đang được dùng ở nơi khác. Luồng xóa media phải kiểm tra cả `Recipe.FinalMediaAssetId` và `RecipeStep.MediaAssetId`.
+
+Accept draft chạy transaction: xác nhận draft còn hợp lệ, tạo hoặc liên kết `MediaAsset`, gán đúng target FK và preset, đánh dấu draft accepted. Discard và cleanup xóa file tạm theo chính sách hiện có. TargetKind ngăn draft ảnh thành phẩm ghi nhầm vào step và ngược lại.
+
+### 10.3. Hiển thị
+- Edit: ảnh lớn, source badge, preset và thao tác thay/xóa.
+- Index: thumbnail theo preset.
+- Preview: hero trước nội dung recipe.
+- PDF: cấp `RecipePdfModel.HeroImageBytes/HeroImageMimeType`; QuestPDF render ảnh vào khung kích thước theo preset với tỷ lệ cố định, không cắt byte gốc. Nếu không có ảnh thì layout hiện tại tiếp tục hoạt động không hero.
+## 11. Lưu final prompt
+`AiImageDraft.PromptSnapshot` lưu nguyên prompt tiếng Anh đã gửi FLUX. Giới hạn 8.000 ký tự áp dụng cho prompt tiếng Anh HOÀN CHỈNH — tức là sau khi ghép bản dịch với canonical FLUX block; `userBrief` vẫn tối đa 500 ký tự. Prompt hoàn chỉnh vượt 8.000 bị từ chối trước provider, không bị cắt. `AiImagePromptBuilder` kiểm tra trước độ dài prompt tiếng Việt để tránh dịch lãng phí nếu ước tính vượt ngưỡng.
+## 12. Logging
+
+Cấu hình:
 
 ```json
 {
@@ -181,69 +300,68 @@ Cấu hình mức log:
 }
 ```
 
-Các service AI không log:
+Không log source/final prompt, bản dịch, raw response, key/token hoặc provider error body. Log chỉ chứa target kind, mã recipe/step/draft, preset, kích thước, provider, lượt thử, numeric status code, thời gian và byte size. Metadata được log tại handler/generator; không đổi translator contract chỉ để log.
 
-- Full source/final prompt.
-- Bản dịch hoặc raw provider response.
-- API key/token.
-- Provider error body.
+## 13. Xử lý lỗi
 
-Log được phép:
-
-```text
-[DỊCH PROMPT] started step=3 ingredients=4 priorSteps=2
-[DỊCH PROMPT] completed provider=Gemini durationMs=1991
-[TẠO ẢNH AI] completed provider=Cloudflare durationMs=3400 sizeKb=512
-```
-
-Log chỉ được chứa mã recipe/step/draft, số lượng nguyên liệu và bước context, provider, số lượt thử, status code, thời gian xử lý và kích thước ảnh. Không đổi `IAiPromptTranslator` chỉ để truyền dữ liệu log.
-
-## 11. Xử lý lỗi
-
-- Không tìm thấy recipe/step: trả `NotFound`.
-- Không có nguyên liệu hoặc instruction rỗng: dừng trước provider và hiển thị lỗi rõ ràng.
-- Provider dịch lỗi ngoài 429: dừng; không gọi key khác, provider dự phòng hoặc FLUX.
+- Không tìm thấy recipe/step/draft/media: trả `NotFound`.
+- Recipe không có nguyên liệu hoặc step target có instruction rỗng: dừng trước provider.
+- Provider dịch lỗi ngoài 429: dừng; không gọi key khác, fallback hoặc FLUX.
 - Sau `5 × số key` phản hồi 429: gọi Llama đúng một lần.
-- Llama lỗi: dừng; không gọi FLUX.
-- Bản dịch rỗng hoặc thiếu section bắt buộc: dừng; không gọi FLUX.
-- Prompt hoàn chỉnh rỗng hoặc vượt 8.000 ký tự: dừng trước FLUX.
+- Bản dịch rỗng/thiếu section hoặc prompt vượt 8.000: dừng trước FLUX.
+- FLUX trả base64/image sai: không tạo draft/media; thông báo generic.
+- Kích thước không thuộc preset: từ chối trước FLUX.
 - Caller cancellation: dừng ngay, không retry/fallback.
+- Accept draft sai target, hết hạn hoặc đã xử lý: từ chối; không thay active media.
 
-## 12. Kiểm thử
+## 14. Kiểm thử
 
-### Unit/contract tests
+### 14.1. Prompt và translator
 
-1. Source prompt chứa recipe name, toàn bộ ingredients, định lượng/đơn vị, mọi prior step đúng thứ tự, current step và user brief.
-2. Source prompt không chứa future steps.
-3. Current step được đánh dấu là hành động duy nhất cần minh họa.
-4. Gemini request chứa system prompt dịch đầy đủ; parser không cắt text parts.
-5. Final prompt chứa canonical style đúng một lần.
-6. Regenerate dùng lại `draft.UserBrief` khi field không được gửi; field được gửi rỗng thì xóa yêu cầu cũ.
-7. Final prompt dài hơn 2.000 nhưng không quá 8.000 được lưu nguyên vẹn.
-8. Prompt vượt 8.000 bị từ chối trước khi gọi FLUX.
-9. Log không chứa prompt, translated output, raw response, key hoặc token.
-10. Toàn bộ regression tests về `5 × số key`, 429 và fallback tiếp tục pass.
+1. Step source chứa recipe, toàn bộ ingredients, prior steps đúng thứ tự, current step và user brief; không chứa future steps.
+2. Mọi hành động trong current step được giữ; không keyword filtering.
+3. Final-product source chứa toàn bộ recipe/process nhưng canonical prompt chỉ yêu cầu thành phẩm.
+4. Gemini và Llama dùng cùng faithful-translation instruction.
+5. `maxOutputTokens = 4096`; parser nối đủ text parts.
+6. Canonical block đúng target và xuất hiện đúng một lần.
+7. Regenerate dùng lại brief khi field absent; field rỗng thì xóa.
+8. Prompt 2.001–8.000 ký tự được lưu nguyên; trên 8.000 bị từ chối.
+9. Regression tests `5 × số key`, 429, timeout và fallback tiếp tục pass.
 
-### Benchmark thủ công trên FLUX.1 Schnell
+### 14.2. Generator và preset
 
-Dùng 12–15 bước thật; mỗi bước là một case. Bộ case phải gồm cân/đong, khuấy, đánh matcha, espresso, hấp sữa, xay, lắc, rót, tạo lớp, topping, chuyển hỗn hợp và bước mơ hồ. Mỗi case tạo ba ảnh và chấm:
+1. Klein 4B request là multipart, đúng model ID, width/height/seed, không có `steps`.
+2. Base64 hợp lệ được decode; dữ liệu sai không tạo draft.
+3. Bốn preset map đúng kích thước và giá trị ngoài enum bị từ chối.
+4. Step và final-product đều truyền preset vào generator.
+5. Log không chứa prompt, output, raw response hoặc secret.
 
-- Đúng hành động hiện tại.
-- Đúng trạng thái từ bước trước.
-- Không thêm/bỏ nguyên liệu.
-- Dụng cụ đúng yêu cầu thêm.
-- Không trộn bước trước hoặc bước tương lai.
-- Style nhất quán.
-- Tay, ly, chất lỏng và thiết bị hợp lý.
+### 14.3. Media và UI
 
-Một case đạt khi ít nhất hai trong ba ảnh đúng hành động hiện tại, không thêm nguyên liệu và không đưa bước tương lai vào ảnh. Toàn bộ benchmark đạt khi mọi case đạt và ít nhất 80% số ảnh đáp ứng đủ bảy tiêu chí. Mỗi vòng benchmark chỉ thay một khối prompt để biết thay đổi nào tạo khác biệt.
+1. Migration backfill draft cũ và giữ toàn vẹn target.
+2. Upload/library/AI đều có thể gán final image.
+3. Accept draft gán đúng `RecipeStep` hoặc `Recipe` trong transaction.
+4. Replace/unlink không xóa asset dùng chung.
+5. Media đang được recipe hoặc step dùng không bị xóa sai.
+6. Edit, Index, Preview và PDF dùng final image; null hero có fallback sạch.
+7. Crop frame theo preset nhất quán cho upload/library; AI có native dimensions.
 
-## 13. Ngoài phạm vi
+## 15. Benchmark FLUX.2 Klein 4B
 
-- Không thêm trường dụng cụ vào `RecipeStep`.
-- Không xây danh mục máy, ly hoặc dụng cụ.
+Dùng 12–15 bước thật và 4–6 công thức hoàn chỉnh. Mỗi case tạo ba ảnh với preset đại diện.
+
+Ảnh bước chấm: đúng hành động, trạng thái trước, nguyên liệu, dụng cụ, không trộn bước, style và vật lý. Ảnh thành phẩm chấm: đúng món cuối, ly/lớp/topping, không có thao tác/tay/người/đạo cụ thừa, style hero và tỷ lệ.
+
+Case đạt khi ít nhất hai trong ba ảnh đúng target, không thêm nguyên liệu và không thêm người/bước tương lai. Benchmark đạt khi mọi case đạt và ít nhất 80% ảnh đáp ứng toàn bộ tiêu chí. Mỗi vòng chỉ thay một block prompt.
+
+## 16. Giới hạn và ngoài phạm vi
+
+- Prompt giảm sai lệch nhưng không bảo đảm ảnh đúng 100%; người dùng vẫn duyệt draft thủ công.
+- Không thêm AI thứ hai để đọc/chấm ảnh.
+- Không thêm field hoặc danh mục dụng cụ.
 - Không lọc keyword hoặc viết rule theo loại đồ uống.
-- Không thêm style selector vào UI.
-- Không đổi model FLUX.
-- Không dùng thêm một lượt AI để tóm tắt trạng thái.
-- Không gửi bước tương lai làm context.
+- Không thêm style selector; chỉ có preset tỷ lệ/kích thước.
+- Không hỗ trợ model third-party AI Gateway trong plan này.
+- Không dùng thêm lượt AI để tóm tắt context.
+- Không gửi bước tương lai vào ảnh bước.
+- Không cho nhập width/height tùy ý.
