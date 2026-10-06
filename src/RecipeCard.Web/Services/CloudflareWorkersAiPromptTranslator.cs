@@ -31,50 +31,38 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
 
         _options.Validate();
 
-        var model = !string.IsNullOrWhiteSpace(_options.TranslationModel)
-            ? _options.TranslationModel
-            : "@cf/meta/llama-3.1-8b-instruct";
-
+        const string model = "@cf/meta/llama-3.1-8b-instruct";
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        string payload;
-        if (IsLlamaModel(model))
+        var payload = JsonSerializer.Serialize(new
         {
-            payload = JsonSerializer.Serialize(new
+            messages = new object[]
             {
-                messages = new object[]
+                new
                 {
-                    new
-                    {
-                        role = "system",
-                        content = "You are a beverage preparation visual prompt engineer for FLUX image generator. Convert the Vietnamese beverage recipe step into a clear, realistic English visual description of the action. Translate Vietnamese F&B terms accurately: 'đường nước' or 'nước đường' to 'sugar syrup', 'đá' or 'đá viên' to 'ice cubes', 'ly giấy' to 'paper cup', 'ly thủy tinh' to 'clear glass cup'. Do not output step numbers, prefixes, quotes, markdown, or conversational filler. Output only the English visual action description."
-                    },
-                    new
-                    {
-                        role = "user",
-                        content = vietnamesePrompt
-                    }
+                    role = "system",
+                    content = "You are a beverage preparation visual prompt engineer for FLUX image generator. Convert the Vietnamese beverage recipe step into a clear, realistic English visual description of the action. Translate Vietnamese F&B terms accurately: 'đường nước' or 'nước đường' to 'sugar syrup', 'đá' or 'đá viên' to 'ice cubes', 'ly giấy' to 'paper cup', 'ly thủy tinh' to 'clear glass cup'. Do not output step numbers, prefixes, quotes, markdown, or conversational filler. Output only the English visual action description."
                 },
-                max_tokens = 150
-            });
-        }
-        else
-        {
-            payload = JsonSerializer.Serialize(new
-            {
-                text = vietnamesePrompt,
-                source_lang = "vi",
-                target_lang = "en"
-            });
-        }
+                new
+                {
+                    role = "user",
+                    content = vietnamesePrompt
+                }
+            },
+            max_tokens = 150
+        });
         request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
         HttpResponseMessage response;
         try
         {
             response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("Yêu cầu đến dịch vụ Cloudflare Workers AI bị quá thời gian chờ (timeout).", ex);
         }
         catch (OperationCanceledException)
         {
@@ -87,33 +75,17 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            string userFriendlyError = "Dịch vụ AI không thể xử lý yêu cầu lúc này.";
-
-            try
-            {
-                using var doc = JsonDocument.Parse(errorBody);
-                if (doc.RootElement.TryGetProperty("errors", out var errors) && errors.GetArrayLength() > 0)
-                {
-                    var msg = errors[0].GetProperty("message").GetString();
-                    if (!string.IsNullOrWhiteSpace(msg))
-                    {
-                        userFriendlyError = $"Lỗi từ Cloudflare AI: {msg}";
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback to generic message to avoid leaking any raw response structure
-            }
-
-            throw new InvalidOperationException(userFriendlyError);
+            throw new InvalidOperationException("Dịch vụ AI không thể xử lý yêu cầu lúc này.");
         }
 
         string responseBody;
         try
         {
             responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("Yêu cầu đọc phản hồi từ dịch vụ Cloudflare AI bị quá thời gian chờ (timeout).", ex);
         }
         catch (OperationCanceledException)
         {
@@ -128,32 +100,12 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
         try
         {
             using var doc = JsonDocument.Parse(responseBody);
-            if (doc.RootElement.TryGetProperty("result", out var resultElement))
+            if (doc.RootElement.TryGetProperty("result", out var resultElement) &&
+                resultElement.ValueKind == JsonValueKind.Object &&
+                resultElement.TryGetProperty("response", out var respProp) &&
+                respProp.ValueKind == JsonValueKind.String)
             {
-                if (resultElement.ValueKind == JsonValueKind.Object)
-                {
-                    if (resultElement.TryGetProperty("response", out var respProp) &&
-                        respProp.ValueKind == JsonValueKind.String)
-                    {
-                        translatedText = respProp.GetString();
-                    }
-                    else if (resultElement.TryGetProperty("translated_text", out var textProp) &&
-                             textProp.ValueKind == JsonValueKind.String)
-                    {
-                        translatedText = textProp.GetString();
-                    }
-                }
-                else if (resultElement.ValueKind == JsonValueKind.Array &&
-                         resultElement.GetArrayLength() > 0)
-                {
-                    var firstItem = resultElement[0];
-                    if (firstItem.ValueKind == JsonValueKind.Object &&
-                        firstItem.TryGetProperty("translated_text", out var arrayTextProp) &&
-                        arrayTextProp.ValueKind == JsonValueKind.String)
-                    {
-                        translatedText = arrayTextProp.GetString();
-                    }
-                }
+                translatedText = respProp.GetString();
             }
         }
         catch (Exception ex)
@@ -172,11 +124,6 @@ public class CloudflareWorkersAiPromptTranslator : IAiPromptTranslator
         }
 
         return cleaned;
-    }
-
-    private static bool IsLlamaModel(string model)
-    {
-        return model.Contains("llama", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string SanitizeOutput(string text)

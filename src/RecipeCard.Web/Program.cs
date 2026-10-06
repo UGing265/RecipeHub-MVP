@@ -14,6 +14,10 @@ builder.Services.Configure<RecipeCard.Web.Services.CloudinaryOptions>(
     builder.Configuration.GetSection(RecipeCard.Web.Services.CloudinaryOptions.SectionName));
 builder.Services.Configure<RecipeCard.Web.Services.CloudflareOptions>(
     builder.Configuration.GetSection(RecipeCard.Web.Services.CloudflareOptions.SectionName));
+builder.Services.Configure<RecipeCard.Web.Services.GeminiOptions>(
+    builder.Configuration.GetSection(RecipeCard.Web.Services.GeminiOptions.SectionName));
+
+builder.Services.AddSingleton<RecipeCard.Web.Services.GeminiKeyCursor>();
 
 builder.Services.AddSingleton<RecipeCard.Web.Services.IImageValidator, RecipeCard.Web.Services.ImageValidator>();
 builder.Services.AddScoped<RecipeCard.Web.Services.CloudinaryImageStorageService>();
@@ -33,7 +37,11 @@ builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiImageGenerator, Recipe
 {
     client.Timeout = TimeSpan.FromSeconds(60);
 });
-builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiPromptTranslator, RecipeCard.Web.Services.CloudflareWorkersAiPromptTranslator>(client =>
+builder.Services.AddHttpClient<RecipeCard.Web.Services.CloudflareWorkersAiPromptTranslator>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiPromptTranslator, RecipeCard.Web.Services.GeminiRoundRobinPromptTranslator>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
 });
