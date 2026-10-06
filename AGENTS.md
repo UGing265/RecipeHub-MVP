@@ -1,15 +1,15 @@
 # AGENTS.md — R&D Recipe Hub Guidelines
 
-Hướng dẫn quy chuẩn thiết kế, kiến trúc kỹ thuật và quy tắc code dành cho AI Agents khi làm việc trong repository này (đồng thời áp dụng cho file `AGENT.md`).
+Hướng dẫn quy chuẩn thiết kế, kiến trúc kỹ thuật và quy tắc code dành cho AI Agents khi làm việc trong repository này.
 
 ---
 
-## 1. Hệ thống thiết kế (Visual Design System — `doc/DESIGN.md`)
+## 1. Hệ thống thiết kế (Visual Design System — `docs/materials/DESIGN.md`)
 
-Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **BẮT BUỘC** tuân thủ triệt để ngôn ngữ thiết kế từ `doc/DESIGN.md` (phong cách Mobbin / Gallery-White Monochrome).
+Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **BẮT BUỘC** tuân thủ triệt để ngôn ngữ thiết kế từ `docs/materials/DESIGN.md` (phong cách Mobbin / Gallery-White Monochrome).
 
 ### Bố cục khung ứng dụng (App Shell & Sidebar Navigation)
-- Thanh điều hướng chính của hệ thống được tổ chức dạng **Sidebar bên trái** (`.app-sidebar`, chiều rộng 260px) theo quy chuẩn `ex-app-shell-row` trong `doc/DESIGN.md`:
+- Thanh điều hướng chính của hệ thống được tổ chức dạng **Sidebar bên trái** (`.app-sidebar`, chiều rộng 260px) theo quy chuẩn `ex-app-shell-row` trong `docs/materials/DESIGN.md`:
   - Mục điều hướng "Nguyên liệu" (`/Ingredients/Index`) và "Công thức" (`/Recipes/Index`) nằm cố định trên sidebar.
   - Mỗi hàng điều hướng (`.app-nav-item`) có bo góc 16px (`--radius-sm`), padding `8px 16px`, vạch chỉ báo trạng thái kích hoạt (`activeIndicator: #141414`) ở cạnh trái.
   - Hỗ trợ responsive trên thiết bị di động thông qua nút mở menu `.app-topbar` và backdrop mờ.
@@ -39,7 +39,7 @@ Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **B�
 - Phân tầng thị giác bằng các sắc độ trung tính (ladder of neutral tints: Canvas → Canvas Soft → Field) và đường kẻ mảnh 1px (`Hairline`).
 
 ### Typography & Quyết định Font chữ (Saans & Fallback)
-- `doc/DESIGN.md` chỉ định phông chữ **Saans** (Pangram Pangram). Do đây là font thương mại và repository hiện chưa nhúng file bản quyền `.woff2`, hệ thống sử dụng **System Sans Fallback Stack**:
+- `docs/materials/DESIGN.md` chỉ định phông chữ **Saans** (Pangram Pangram). Do đây là font thương mại và repository hiện chưa nhúng file bản quyền `.woff2`, hệ thống sử dụng **System Sans Fallback Stack**:
   ```css
   --font-family-base: "Saans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   ```
@@ -85,3 +85,11 @@ Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **B�
 - ❌ **Không** tự ý chuyển sang Single Page Application (SPA), React/Vue hoặc thêm Web API riêng trừ khi có yêu cầu rõ ràng.
 - ❌ **Không** đổi layout PDF QuestPDF sang màu sắc khác ngoài palette Monochrome `#141414` đã thiết lập.
 - ❌ **Không** xóa code kiểm tra magic bytes của ảnh hoặc bỏ qua việc xử lý transaction khi đổi thứ tự bước.
+
+---
+
+## 4. Tổ chức tài liệu và kế hoạch
+
+- `docs/materials/`: SRS (`PRN232.SRS.md`), design (`DESIGN.md`), tài liệu AI/media (`MEDIA_AND_AI_OPERATIONS.md`) và PDF tham chiếu.
+- `docs/plans/`: kế hoạch triển khai; tạo kế hoạch mới và cập nhật liên kết theo đường dẫn này, không dùng `plans/` ở root.
+- `docs/journals/`: nhật ký thực hiện. Giữ tài liệu ở `docs/`, không tạo lại thư mục `doc/` hoặc `plans/` tại root.
