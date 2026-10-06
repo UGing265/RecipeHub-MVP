@@ -80,6 +80,22 @@
                 </div>
             </div>
 
+            @if (Model.Recipe.FinalMediaAsset != null)
+            {
+                <div class="mb-5">
+                    <div class="position-relative overflow-hidden rounded-3" style="max-height: 380px; background: var(--color-canvas-soft); border: 1px solid var(--color-hairline);">
+                        <img src="@Model.Recipe.FinalMediaAsset.DeliveryUrl" alt="Ảnh thành phẩm @Model.Recipe.Name" class="w-100 h-100" style="object-fit: cover; max-height: 380px;" />
+                        <div class="position-absolute top-0 start-0 m-2">
+                            <span class="badge-pill-dark" style="font-size: 11px;">
+                                @(Model.Recipe.FinalMediaAsset.SourceType == RecipeCard.Web.Models.MediaSourceType.AiIllustration ? "Ảnh thành phẩm AI" : "Ảnh chụp thành phẩm")
+                            </span>
+                            <span class="badge-pill-soft ms-1" style="font-size: 11px;">
+                                @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(Model.Recipe.FinalImageAspectRatioPreset)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            }
             <!-- Section 1: Ingredients -->
             <div class="mb-5">
                 <div class="d-flex align-items-center gap-2 mb-3">

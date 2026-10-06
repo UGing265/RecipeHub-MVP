@@ -24,6 +24,7 @@ public class IndexModel(RecipeDbContext db, IImageStorageService imageStorage) :
         public string? GeneralNote { get; set; }
         public int IngredientCount { get; set; }
         public int StepCount { get; set; }
+        public string? FinalImageUrl { get; set; }
         public bool IsReady => IngredientCount > 0 && StepCount > 0;
     }
 
@@ -37,7 +38,8 @@ public class IndexModel(RecipeDbContext db, IImageStorageService imageStorage) :
                 Name = r.Name,
                 GeneralNote = r.GeneralNote,
                 IngredientCount = r.Ingredients.Count,
-                StepCount = r.Steps.Count
+                StepCount = r.Steps.Count,
+                FinalImageUrl = r.FinalMediaAsset != null ? r.FinalMediaAsset.DeliveryUrl : null
             })
             .ToListAsync();
     }

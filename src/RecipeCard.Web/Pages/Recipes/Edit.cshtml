@@ -46,15 +46,16 @@
 }
 
 <div class="d-flex flex-column gap-4">
-    <!-- Section 1: Thông tin chung -->
+    <!-- Section 1: Thông tin chung & Ảnh thành phẩm đại diện -->
     <div class="mobbin-card">
         <div class="mobbin-card-header">
             <div>
                 <span class="text-uppercase text-muted fw-semibold" style="font-size: 11px; letter-spacing: 0.05em;">Phần 01</span>
-                <h4 class="fw-bold mb-0">Thông tin chung</h4>
+                <h4 class="fw-bold mb-0">Thông tin chung & Ảnh thành phẩm</h4>
             </div>
         </div>
-        <form method="post" asp-page-handler="UpdateDetails" asp-route-id="@Model.Recipe.Id">
+
+        <form method="post" asp-page-handler="UpdateDetails" asp-route-id="@Model.Recipe.Id" class="mb-4">
             <div class="row g-3">
                 <div class="col-md-5">
                     <label class="form-label">Tên công thức pha chế</label>
@@ -69,6 +70,160 @@
                 </div>
             </div>
         </form>
+
+        <hr class="my-4" style="border-color: var(--color-hairline);" />
+
+        <!-- Khối Quản lý Ảnh thành phẩm (Hero) -->
+        <div>
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h5 class="fw-bold mb-1" style="font-size: 16px;">Ảnh đại diện thành phẩm (Hero Image)</h5>
+                    <div class="text-muted" style="font-size: 13px;">Hiển thị ở trang danh sách, trang xem trước và đầu tài liệu PDF.</div>
+                </div>
+                @if (Model.Recipe.FinalMediaAsset != null)
+                {
+                    <form method="post" asp-page-handler="RemoveFinalImage" asp-route-id="@Model.Recipe.Id" onsubmit="return confirm('Bạn có chắc muốn gỡ ảnh thành phẩm đại diện?');">
+                        <button type="submit" class="btn-mobbin-danger btn-mobbin-sm">Gỡ ảnh thành phẩm</button>
+                    </form>
+                }
+            </div>
+
+            @if (Model.Recipe.FinalMediaAsset != null)
+            {
+                <div class="mobbin-card-soft p-3 d-flex flex-column flex-sm-row align-items-start gap-3 mb-3">
+                    <div class="position-relative d-inline-block">
+                        <img src="@Model.Recipe.FinalMediaAsset.DeliveryUrl" alt="Ảnh thành phẩm @Model.Recipe.Name" class="step-media-tile" style="max-height: 180px; max-width: 280px; object-fit: cover;" />
+                        <div class="position-absolute top-0 start-0 m-1">
+                            @if (Model.Recipe.FinalMediaAsset.SourceType == RecipeCard.Web.Models.MediaSourceType.AiIllustration)
+                            {
+                                <span class="badge-pill-dark" style="font-size: 11px;">AI Thành phẩm</span>
+                            }
+                            else
+                            {
+                                <span class="badge-pill-soft" style="font-size: 11px;">Ảnh thật</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="flex-grow-1" style="font-size: 13px;">
+                        <div class="fw-semibold mb-1">Tỷ lệ: @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(Model.Recipe.FinalImageAspectRatioPreset)</div>
+                        <div class="text-muted mb-2">Đường dẫn: <span class="text-faint text-break">@Model.Recipe.FinalMediaAsset.DeliveryUrl</span></div>
+                        <div class="text-muted"><small>Cập nhật lúc: @Model.Recipe.FinalMediaAsset.CreatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small></div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="p-3 mb-3 text-center rounded-3" style="background-color: var(--color-canvas-soft); border: 1px dashed var(--color-hairline); font-size: 13px; color: var(--color-text-muted);">
+                    Chưa có ảnh đại diện thành phẩm. Bạn có thể tải ảnh lên, chọn từ thư viện hoặc tạo bằng AI bên dưới.
+                </div>
+            }
+
+            @if (Model.ActiveFinalDraft != null)
+            {
+                <div class="mobbin-card p-3 mb-3" style="background: var(--color-canvas); border: 1.5px solid var(--color-ink);">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-bold" style="font-size: 13px; color: var(--color-ink);">
+                            <span>Bản nháp AI thành phẩm đang chờ duyệt</span>
+                            <span class="badge-pill-dark ms-1" style="font-size: 10px;">Hết hạn: @Model.ActiveFinalDraft.ExpiresUtc.ToLocalTime().ToString("HH:mm")</span>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-column flex-md-row gap-3 align-items-start">
+                        <img src="@Url.Page("./Edit", "DraftImage", new { id = Model.Recipe.Id, draftId = Model.ActiveFinalDraft.Id })" 
+                             alt="Bản nháp AI thành phẩm" class="step-media-tile" style="max-height: 180px; max-width: 260px; object-fit: cover;" />
+                        <div class="flex-grow-1">
+                            <div class="text-muted mb-2" style="font-size: 12px; line-height: 1.4;">
+                                <div><strong>Tỷ lệ:</strong> @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(Model.ActiveFinalDraft.AspectRatioPreset)</div>
+                                @if (!string.IsNullOrEmpty(Model.ActiveFinalDraft.UserBrief))
+                                {
+                                    <div><strong>Yêu cầu:</strong> @Model.ActiveFinalDraft.UserBrief</div>
+                                }
+                                <div><small class="text-faint">Model: @Model.ActiveFinalDraft.Model</small></div>
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <form method="post" asp-page-handler="AcceptAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@Model.ActiveFinalDraft.Id">
+                                    <button type="submit" class="btn-mobbin-primary btn-mobbin-sm">
+                                        <span>Chấp nhận làm ảnh thành phẩm</span>
+                                    </button>
+                                </form>
+                                <form method="post" asp-page-handler="DiscardAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@Model.ActiveFinalDraft.Id">
+                                    <button type="submit" class="btn-mobbin-danger btn-mobbin-sm">
+                                        <span>Bỏ ảnh</span>
+                                    </button>
+                                </form>
+                            </div>
+                            <details class="mt-2">
+                                <summary class="text-muted cursor-pointer" style="font-size: 12px;">Tạo lại ảnh thành phẩm &darr;</summary>
+                                <form method="post" asp-page-handler="RegenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@Model.ActiveFinalDraft.Id" class="mt-2 row g-2">
+                                    <div class="col-md-5">
+                                        <select name="preset" class="form-select form-select-sm">
+                                            @foreach (var preset in Enum.GetValues<RecipeCard.Web.Models.AspectRatioPreset>())
+                                            {
+                                                <option value="@preset" selected="@(preset == Model.ActiveFinalDraft.AspectRatioPreset ? "selected" : null)">
+                                                    @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
+                                                </option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-7 d-flex gap-2">
+                                        <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@Model.ActiveFinalDraft.UserBrief" />
+                                        <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                    </div>
+                                </form>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="mobbin-card-soft p-3 h-100">
+                        <div class="fw-semibold mb-2" style="font-size: 13.5px;">Tùy chọn A: Tải file ảnh lên</div>
+                        <form method="post" asp-page-handler="UploadFinalImage" asp-route-id="@Model.Recipe.Id" enctype="multipart/form-data">
+                            <input type="file" name="image" class="form-control form-control-sm mb-2" accept=".jpg,.jpeg,.png,.webp" required />
+                            <button type="submit" class="btn-mobbin-outline btn-mobbin-sm w-100">Tải ảnh lên</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mobbin-card-soft p-3 h-100">
+                        <div class="fw-semibold mb-2" style="font-size: 13.5px;">Tùy chọn B: Chọn từ thư viện</div>
+                        <form method="post" asp-page-handler="SelectFinalImageFromLibrary" asp-route-id="@Model.Recipe.Id">
+                            <select name="mediaAssetId" class="form-select form-select-sm mb-2" required>
+                                <option value="">-- Chọn ảnh có sẵn --</option>
+                                @foreach (var asset in Model.AvailableMediaAssets)
+                                {
+                                    <option value="@asset.Value">@asset.Text</option>
+                                }
+                            </select>
+                            <button type="submit" class="btn-mobbin-outline btn-mobbin-sm w-100">Gắn ảnh từ thư viện</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mobbin-card-soft p-3 h-100">
+                        <div class="fw-semibold mb-2" style="font-size: 13.5px;">Tùy chọn C: Sinh ảnh AI thành phẩm</div>
+                        <form method="post" asp-page-handler="GenerateFinalAiImage" asp-route-id="@Model.Recipe.Id">
+                            <div class="mb-2">
+                                <label class="form-label" style="font-size: 11.5px;">Tỷ lệ khung hình</label>
+                                <select name="preset" class="form-select form-select-sm">
+                                    @foreach (var preset in Enum.GetValues<RecipeCard.Web.Models.AspectRatioPreset>())
+                                    {
+                                        <option value="@preset" selected="@(preset == RecipeCard.Web.Models.AspectRatioPreset.WideLandscape16x9 ? "selected" : null)">
+                                            @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu thêm (tối đa 500 ký tự)..." maxlength="500" />
+                            </div>
+                            <button type="submit" class="btn-mobbin-primary btn-mobbin-sm w-100">Sinh ảnh AI thành phẩm</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Section 2: Thành phần nguyên liệu -->
@@ -86,29 +241,20 @@
                 <table class="mobbin-table">
                     <thead>
                         <tr>
-                            <th style="width: 70px;">STT</th>
-                            <th>Nguyên liệu</th>
-                            <th style="width: 180px;">Định lượng</th>
-                            <th style="width: 140px;">Đơn vị</th>
-                            <th style="width: 100px;" class="text-center">Xóa</th>
+                            <th style="width: 50%;">Nguyên liệu</th>
+                            <th style="width: 30%;">Định lượng</th>
+                            <th style="width: 20%; text-align: right;">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @{ int ingStt = 1; }
                         @foreach (var item in Model.Recipe.Ingredients)
                         {
                             <tr>
-                                <td class="text-muted" style="font-size: 13px;">@(ingStt++)</td>
-                                <td class="fw-bold">@item.Ingredient.Name</td>
-                                <td>
-                                    <span class="fw-bold" style="font-size: 16px;">@item.Quantity.ToString("0.##")</span>
-                                </td>
-                                <td>
-                                    <span class="badge-pill-soft">@item.Ingredient.DefaultUnit</span>
-                                </td>
-                                <td class="text-center">
+                                <td class="fw-semibold">@item.Ingredient.Name</td>
+                                <td>@item.Quantity.ToString("G29") @item.Ingredient.DefaultUnit</td>
+                                <td style="text-align: right;">
                                     <form method="post" asp-page-handler="RemoveIngredient" asp-route-id="@Model.Recipe.Id" asp-route-recipeIngredientId="@item.Id" class="d-inline">
-                                        <button type="submit" class="btn-mobbin-danger" title="Xóa dòng">&times;</button>
+                                        <button type="submit" class="btn-mobbin-danger" title="Xóa nguyên liệu">&times;</button>
                                     </form>
                                 </td>
                             </tr>
@@ -120,40 +266,38 @@
         else
         {
             <div class="p-4 mb-4 text-center rounded-3" style="background-color: var(--color-canvas-soft); border: 1px dashed var(--color-hairline);">
-                <div class="text-muted" style="font-size: 14px;">Công thức chưa có nguyên liệu nào. Hãy thêm ở bên dưới.</div>
+                <div class="text-muted" style="font-size: 14px;">Chưa có nguyên liệu nào trong công thức. Vui lòng thêm bên dưới.</div>
             </div>
         }
 
-        <!-- Form thêm nguyên liệu -->
+        <!-- Form thêm nguyên liệu mới -->
         <div class="mobbin-card-soft">
             <div class="fw-bold mb-3" style="font-size: 15px;">+ Thêm nguyên liệu vào công thức</div>
-            @if (Model.AvailableIngredients.Count > 0)
-            {
-                <form method="post" asp-page-handler="AddIngredient" asp-route-id="@Model.Recipe.Id" class="row g-3 align-items-end">
-                    <div class="col-md-6">
-                        <label class="form-label">Chọn nguyên liệu từ danh mục</label>
-                        <select name="ingredientId" class="form-select" asp-items="Model.AvailableIngredients" required></select>
+            <form method="post" asp-page-handler="AddIngredient" asp-route-id="@Model.Recipe.Id">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-7">
+                        <label class="form-label">Chọn nguyên liệu</label>
+                        <select name="ingredientId" class="form-select" required>
+                            <option value="">-- Chọn nguyên liệu có sẵn --</option>
+                            @foreach (var ing in Model.AvailableIngredients)
+                            {
+                                <option value="@ing.Value">@ing.Text</option>
+                            }
+                        </select>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Định lượng (> 0)</label>
-                        <input type="number" name="quantity" class="form-control" step="0.01" min="0.01" placeholder="Ví dụ: 22.5, 70, 105..." required />
+                    <div class="col-md-3">
+                        <label class="form-label">Số lượng</label>
+                        <input type="number" step="0.01" min="0.01" name="quantity" class="form-control" placeholder="Ví dụ: 30" required />
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn-mobbin-primary w-100">+ Thêm</button>
                     </div>
-                </form>
-            }
-            else
-            {
-                <div class="text-muted" style="font-size: 14px;">
-                    Tất cả nguyên liệu trong danh mục đã được thêm hoặc danh mục đang trống.
-                    <a asp-page="/Ingredients/Create" target="_blank" class="fw-semibold text-decoration-none" style="color: var(--color-ink);">Bấm vào đây để tạo nguyên liệu mới &rarr;</a>
                 </div>
-            }
+            </form>
         </div>
     </div>
 
-    <!-- Section 3: Quy trình thực hiện -->
+    <!-- Section 3: Quy trình thực hiện (Các bước) -->
     <div class="mobbin-card">
         <div class="mobbin-card-header">
             <div>
@@ -218,6 +362,7 @@
                                                  alt="Bản nháp AI" class="step-media-tile" style="max-height: 140px; max-width: 200px; object-fit: cover;" />
                                             <div class="flex-grow-1">
                                                 <div class="text-muted mb-2" style="font-size: 12px; line-height: 1.4;">
+                                                    <div><strong>Tỷ lệ:</strong> @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(activeDraft.AspectRatioPreset)</div>
                                                     @if (!string.IsNullOrEmpty(activeDraft.UserBrief))
                                                     {
                                                         <div><strong>Yêu cầu:</strong> @activeDraft.UserBrief</div>
@@ -237,10 +382,22 @@
                                                     </form>
                                                 </div>
                                                 <details class="mt-2">
-                                                    <summary class="text-muted cursor-pointer" style="font-size: 12px;">Tạo lại với mô tả khác &darr;</summary>
-                                                    <form method="post" asp-page-handler="RegenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@activeDraft.Id" class="mt-2 d-flex gap-2">
-                                                        <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@activeDraft.UserBrief" />
-                                                        <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                                    <summary class="text-muted cursor-pointer" style="font-size: 12px;">Tạo lại với mô tả/tỷ lệ khác &darr;</summary>
+                                                    <form method="post" asp-page-handler="RegenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-draftId="@activeDraft.Id" class="mt-2 row g-2">
+                                                        <div class="col-md-5">
+                                                            <select name="preset" class="form-select form-select-sm">
+                                                                @foreach (var preset in Enum.GetValues<RecipeCard.Web.Models.AspectRatioPreset>())
+                                                                {
+                                                                    <option value="@preset" selected="@(preset == activeDraft.AspectRatioPreset ? "selected" : null)">
+                                                                        @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
+                                                                    </option>
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-7 d-flex gap-2">
+                                                            <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@activeDraft.UserBrief" />
+                                                            <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                                        </div>
                                                     </form>
                                                 </details>
                                             </div>
@@ -253,10 +410,21 @@
                                         <summary class="btn-mobbin-outline btn-mobbin-sm d-inline-block cursor-pointer" style="list-style: none;">
                                             <span>Tạo minh họa AI</span>
                                         </summary>
-                                        <div class="mobbin-card p-3 mt-2" style="background: var(--color-canvas); max-width: 480px;">
+                                        <div class="mobbin-card p-3 mt-2" style="background: var(--color-canvas); max-width: 520px;">
                                             <form method="post" asp-page-handler="GenerateAiImage" asp-route-id="@Model.Recipe.Id" asp-route-stepId="@step.Id">
                                                 <div class="mb-2">
-                                                    <label class="form-label" style="font-size: 12.5px;">Yêu cầu thêm cho ảnh (tùy chọn, tối đa 500 ký tự)</label>
+                                                    <label class="form-label" style="font-size: 12px;">Tỷ lệ khung hình</label>
+                                                    <select name="preset" class="form-select form-select-sm">
+                                                        @foreach (var preset in Enum.GetValues<RecipeCard.Web.Models.AspectRatioPreset>())
+                                                        {
+                                                            <option value="@preset" selected="@(preset == step.ImageAspectRatioPreset ? "selected" : null)">
+                                                                @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
+                                                            </option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label" style="font-size: 12px;">Yêu cầu thêm cho ảnh (tùy chọn, tối đa 500 ký tự)</label>
                                                     <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Ví dụ: ly thủy tinh trong suốt, góc nhìn từ trên xuống..." maxlength="500" />
                                                 </div>
                                                 <button type="submit" class="btn-mobbin-primary btn-mobbin-sm">

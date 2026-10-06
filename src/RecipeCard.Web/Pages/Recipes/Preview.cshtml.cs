@@ -74,6 +74,25 @@ public partial class PreviewModel(
             Steps = []
         };
 
+        if (recipe.FinalMediaAsset != null && !string.IsNullOrEmpty(recipe.FinalMediaAsset.DeliveryUrl))
+        {
+            if (_httpClientFactory != null)
+            {
+                try
+                {
+                    using var client = _httpClientFactory.CreateClient("MediaDelivery");
+                    using var response = await client.GetAsync(recipe.FinalMediaAsset.DeliveryUrl, HttpCompletionOption.ResponseHeadersRead);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        pdfModel.HeroImageBytes = await response.Content.ReadAsByteArrayAsync();
+                    }
+                }
+                catch
+                {
+                    // Graceful fallback: PDF does not fail if hero image fetch fails
+                }
+            }
+        }
         foreach (var s in recipe.Steps.OrderBy(s => s.SortOrder))
         {
             var stepLine = new RecipePdfStepLine
@@ -125,6 +144,7 @@ public partial class PreviewModel(
     private async Task<Recipe?> LoadRecipeAsync(int id)
     {
         return await _db.Recipes
+            .Include(r => r.FinalMediaAsset)
             .Include(r => r.Ingredients)
                 .ThenInclude(ri => ri.Ingredient)
             .Include(r => r.Steps)

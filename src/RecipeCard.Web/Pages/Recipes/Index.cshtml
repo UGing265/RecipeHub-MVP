@@ -53,15 +53,29 @@ else
                     <tr>
                         <td class="text-muted" style="font-size: 13px;">@(stt++)</td>
                         <td>
-                            <a asp-page="./Edit" asp-route-id="@item.Id" class="fw-bold text-decoration-none" style="color: var(--color-ink);">
-                                @item.Name
-                            </a>
-                            @if (!string.IsNullOrEmpty(item.GeneralNote))
-                            {
-                                <div class="text-muted text-truncate" style="max-width: 320px; font-size: 13px;">
-                                    @item.GeneralNote
+                            <div class="d-flex align-items-center gap-3">
+                                @if (!string.IsNullOrEmpty(item.FinalImageUrl))
+                                {
+                                    <img src="@item.FinalImageUrl" alt="@item.Name" class="step-media-tile flex-shrink-0" style="width: 44px; height: 44px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="step-media-tile flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: var(--color-canvas-soft); color: var(--color-text-muted); font-size: 11px;">
+                                        Chưa ảnh
+                                    </div>
+                                }
+                                <div>
+                                    <a asp-page="./Edit" asp-route-id="@item.Id" class="fw-bold text-decoration-none" style="color: var(--color-ink);">
+                                        @item.Name
+                                    </a>
+                                    @if (!string.IsNullOrEmpty(item.GeneralNote))
+                                    {
+                                        <div class="text-muted text-truncate" style="max-width: 320px; font-size: 13px;">
+                                            @item.GeneralNote
+                                        </div>
+                                    }
                                 </div>
-                            }
+                            </div>
                         </td>
                         <td>
                             <span class="badge-pill-soft">@item.IngredientCount NL</span>
