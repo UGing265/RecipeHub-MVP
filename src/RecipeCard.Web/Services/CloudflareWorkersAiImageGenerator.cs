@@ -65,17 +65,32 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        // FLUX.2 Klein 4B expects multipart/form-data with prompt, width, height, seed (no steps field)
-        var multipart = new MultipartFormDataContent();
-        multipart.Add(new StringContent(request.Prompt), "prompt");
-        multipart.Add(new StringContent(width.ToString()), "width");
-        multipart.Add(new StringContent(height.ToString()), "height");
-        if (request.Seed.HasValue)
-        {
-            multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
-        }
+        // FLUX.2 Klein models require multipart/form-data. Legacy FLUX.1 models require JSON.
+        var isKleinModel = model.Contains("flux-2", StringComparison.OrdinalIgnoreCase)
+            || model.Contains("klein", StringComparison.OrdinalIgnoreCase);
 
-        httpRequest.Content = multipart;
+        if (isKleinModel)
+        {
+            var multipart = new MultipartFormDataContent();
+            multipart.Add(new StringContent(request.Prompt), "prompt");
+            multipart.Add(new StringContent(width.ToString()), "width");
+            multipart.Add(new StringContent(height.ToString()), "height");
+            if (request.Seed.HasValue)
+            {
+                multipart.Add(new StringContent(request.Seed.Value.ToString()), "seed");
+            }
+            httpRequest.Content = multipart;
+        }
+        else
+        {
+            var jsonBody = JsonSerializer.Serialize(new
+            {
+                prompt = request.Prompt,
+                steps = 4,
+                seed = request.Seed
+            });
+            httpRequest.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
+        }
 
         HttpResponseMessage response;
         try
