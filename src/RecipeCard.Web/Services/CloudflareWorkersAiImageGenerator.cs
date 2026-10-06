@@ -69,15 +69,19 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
         // SDXL-Lightning accepts JSON payload with prompt, width, height, num_steps, negative_prompt
-        var jsonPayload = JsonSerializer.Serialize(new
+        var payloadObj = new Dictionary<string, object>
         {
-            prompt = request.Prompt,
-            negative_prompt = NegativePromptText,
-            width = width,
-            height = height,
-            num_steps = 8,
-            seed = request.Seed
-        });
+            ["prompt"] = request.Prompt,
+            ["negative_prompt"] = NegativePromptText,
+            ["width"] = width,
+            ["height"] = height,
+            ["num_steps"] = 8
+        };
+        if (request.Seed.HasValue)
+        {
+            payloadObj["seed"] = request.Seed.Value;
+        }
+        var jsonPayload = JsonSerializer.Serialize(payloadObj);
         httpRequest.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 
         HttpResponseMessage response;
