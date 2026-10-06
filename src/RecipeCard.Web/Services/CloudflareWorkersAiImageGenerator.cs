@@ -8,8 +8,7 @@ namespace RecipeCard.Web.Services;
 
 public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 {
-    private const string DefaultModel = "@cf/bytedance/stable-diffusion-xl-lightning";
-    private const string NegativePromptText = "text, watermark, labels, letters, deformed hands, extra fingers, poor quality, bad anatomy, cartoon, 3d render";
+    private const string DefaultModel = "@cf/black-forest-labs/flux-1-schnell";
 
     private readonly HttpClient _httpClient;
     private readonly CloudflareOptions _options;
@@ -53,34 +52,25 @@ public class CloudflareWorkersAiImageGenerator : IAiImageGenerator
 
         var endpoint = $"https://api.cloudflare.com/client/v4/accounts/{_options.AccountId}/ai/run/{model}";
 
-        var (width, height) = request.Preset.ToDimensions();
-        if (request.Width > 0 && request.Height > 0)
-        {
-            width = request.Width;
-            height = request.Height;
-        }
-
-        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare SDXL-Lightning (Preset: {Preset}, {Width}x{Height})",
-            request.Preset.ToDisplayName(), width, height);
+        _logger?.LogInformation("[TẠO ẢNH AI] Đang gửi yêu cầu sinh ảnh sang Cloudflare FLUX.1 Schnell ({Preset})",
+            request.Preset.ToDisplayName());
 
         var stopwatch = Stopwatch.StartNew();
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, endpoint);
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiToken);
 
-        // SDXL-Lightning accepts JSON payload with prompt, width, height, num_steps, negative_prompt
+        // FLUX.1 Schnell accepts JSON payload with prompt, steps (fixed at 4 for high-speed free tier)
         var payloadObj = new Dictionary<string, object>
         {
             ["prompt"] = request.Prompt,
-            ["negative_prompt"] = NegativePromptText,
-            ["width"] = width,
-            ["height"] = height,
-            ["num_steps"] = 8
+            ["steps"] = 4
         };
         if (request.Seed.HasValue)
         {
             payloadObj["seed"] = request.Seed.Value;
         }
+
         var jsonPayload = JsonSerializer.Serialize(payloadObj);
         httpRequest.Content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
 

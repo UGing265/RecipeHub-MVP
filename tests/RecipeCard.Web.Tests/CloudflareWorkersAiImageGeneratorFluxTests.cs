@@ -7,7 +7,7 @@ using Xunit;
 
 namespace RecipeCard.Web.Tests;
 
-public class CloudflareWorkersAiImageGeneratorSdxlLightningTests
+public class CloudflareWorkersAiImageGeneratorFluxTests
 {
     private static readonly byte[] ValidJpegBytes = Convert.FromBase64String(
         "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCABkAGQDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD3+iiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==");
@@ -22,19 +22,14 @@ public class CloudflareWorkersAiImageGeneratorSdxlLightningTests
         }
     }
 
-    [Theory]
-    [InlineData(AspectRatioPreset.Square1x1, 1024, 1024)]
-    [InlineData(AspectRatioPreset.StandardLandscape4x3, 1024, 768)]
-    [InlineData(AspectRatioPreset.WideLandscape16x9, 1280, 720)]
-    [InlineData(AspectRatioPreset.Portrait4x5, 768, 960)]
-    public async Task GenerateAsync_with_preset_sends_json_with_exact_dimensions_and_negative_prompt(
-        AspectRatioPreset preset, int expectedWidth, int expectedHeight)
+    [Fact]
+    public async Task GenerateAsync_with_flux_1_schnell_sends_json_payload_and_steps_4()
     {
         var options = Options.Create(new CloudflareOptions
         {
             AccountId = "cf-acc",
             ApiToken = "cf-tok",
-            Model = "@cf/bytedance/stable-diffusion-xl-lightning"
+            Model = "@cf/black-forest-labs/flux-1-schnell"
         });
 
         HttpRequestMessage? capturedRequest = null;
@@ -43,22 +38,22 @@ public class CloudflareWorkersAiImageGeneratorSdxlLightningTests
         {
             capturedRequest = req;
             capturedBody = req.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+            var base64 = Convert.ToBase64String(ValidJpegBytes);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new ByteArrayContent(ValidJpegBytes)
+                Content = new StringContent($"{{\"result\":{{\"image\":\"{base64}\"}}}}", System.Text.Encoding.UTF8, "application/json")
             };
         });
 
         var client = new HttpClient(fakeHandler);
         var generator = new CloudflareWorkersAiImageGenerator(client, options, new ImageValidator());
 
-        var (w, h) = preset.ToDimensions();
-        var request = new AiImageGenerationRequest("A refreshing iced peach tea", preset, w, h);
+        var request = new AiImageGenerationRequest("A refreshing iced peach tea", AspectRatioPreset.Square1x1, 1024, 1024);
 
         var result = await generator.GenerateAsync(request);
 
         Assert.NotNull(result);
-        Assert.Equal("@cf/bytedance/stable-diffusion-xl-lightning", result.Model);
+        Assert.Equal("@cf/black-forest-labs/flux-1-schnell", result.Model);
 
         Assert.NotNull(capturedRequest);
         Assert.Equal("application/json", capturedRequest.Content?.Headers.ContentType?.MediaType);
@@ -68,9 +63,7 @@ public class CloudflareWorkersAiImageGeneratorSdxlLightningTests
         var root = doc.RootElement;
 
         Assert.Equal("A refreshing iced peach tea", root.GetProperty("prompt").GetString());
-        Assert.True(root.TryGetProperty("negative_prompt", out var neg) && !string.IsNullOrEmpty(neg.GetString()));
-        Assert.Equal(expectedWidth, root.GetProperty("width").GetInt32());
-        Assert.Equal(expectedHeight, root.GetProperty("height").GetInt32());
-        Assert.Equal(8, root.GetProperty("num_steps").GetInt32());
+        Assert.Equal(4, root.GetProperty("steps").GetInt32());
+        Assert.False(root.TryGetProperty("seed", out _));
     }
 }

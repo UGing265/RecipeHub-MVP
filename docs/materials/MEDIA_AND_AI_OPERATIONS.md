@@ -2,7 +2,7 @@
 
 Tài liệu này cung cấp hướng dẫn chi tiết về mặt kỹ thuật, kiến trúc và vận hành cho các tính năng mới được triển khai trong hệ thống **R&D Recipe Hub**:
 1. **Lưu trữ đám mây Cloudinary** (`CloudinaryImageStorageService`).
-2. **Quy trình sinh ảnh ứng viên bằng Cloudflare Workers AI** (Mô hình `@cf/bytedance/stable-diffusion-xl-lightning` native trong gói 10.000 Neurons miễn phí/ngày, hỗ trợ 4 preset tỷ lệ khung hình, phản hồi siêu tốc 3s và cơ chế ứng viên tạm thời 30 phút).
+2. **Quy trình sinh ảnh ứng viên bằng Cloudflare Workers AI** (Mô hình `@cf/black-forest-labs/flux-1-schnell` native trong gói 10.000 Neurons miễn phí/ngày, sinh ảnh chuẩn studio đồ uống 1024x1024 trong 5s và cơ chế ứng viên tạm thời 30 phút).
 3. **Ảnh thành phẩm đại diện công thức (Hero Product Image)** hỗ trợ 3 nguồn (Upload thật, Thư viện media, AI sinh ảnh) hiển thị đồng bộ trên Edit, Index, Preview và PDF (QuestPDF).
 3. **Thư viện tài nguyên số tập trung** (`/Media/Index` theo ngôn ngữ thiết kế Mobbin).
 4. **Công cụ CLI di chuyển dữ liệu ảnh bước thực hiện** (`--migrate-step-images --confirm`).
@@ -50,7 +50,7 @@ Tài liệu này cung cấp hướng dẫn chi tiết về mặt kỹ thuật, k
                |                 +-----------------------------------------------+
                |                 | IAiImageGenerator                             |
                |                 | (CloudflareWorkersAiImageGenerator)           |
-  | - Model: @cf/bytedance/stable-diffusion-xl-lightning (JSON: prompt, negative_prompt, width, height, num_steps: 8) |
+  | - Model: @cf/black-forest-labs/flux-1-schnell (JSON: prompt, steps: 4)              |
                |                 +-----------------------+-----------------------+
 |               |                                        v                          |
 |               |               +-------------------------------------------------+ |
@@ -171,17 +171,13 @@ Khi lưu trữ tài nguyên số:
 ## 4. Tích hợp Cloudflare Workers AI & Quy trình ứng viên ảnh (Candidate Workflow)
 
 ### 4.1 Mô hình và Endpoint
-- **Mô hình**: `@cf/bytedance/stable-diffusion-xl-lightning` (Mô hình SDXL chưng cất siêu tốc của ByteDance chạy native trên Cloudflare Workers AI, hoàn toàn miễn phí trong hạn mức 10.000 Neurons/ngày).
-- **Endpoint**: `https://api.cloudflare.com/client/v4/accounts/{AccountId}/ai/run/@cf/bytedance/stable-diffusion-xl-lightning`
+- **Mô hình**: `@cf/black-forest-labs/flux-1-schnell` (Mô hình FLUX.1 native chạy trên Cloudflare Workers AI, 4 bước cố định, hoàn toàn miễn phí trong hạn mức 10.000 Neurons/ngày).
+- **Endpoint**: `https://api.cloudflare.com/client/v4/accounts/{AccountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`
 - **Phương thức**: `POST`
 - **Xác thực**: `Authorization: Bearer {ApiToken}`
-- **Định dạng gửi**: `application/json` chứa `prompt`, `negative_prompt`, `width`, `height`, `num_steps: 8`, và `seed` tùy chọn.
-- **4 Preset tỷ lệ khung hình**:
-  - **Vuông (1:1)**: `1024 × 1024` (mặc định cho từng bước pha chế)
-  - **Ngang chuẩn (4:3)**: `1024 × 768`
-  - **Ngang rộng (16:9)**: `1280 × 720` (mặc định cho ảnh đại diện thành phẩm)
-  - **Dọc (4:5)**: `768 × 960`
-- **Kết quả trả về**: Định dạng `image/png` trực tiếp hoặc JSON base64. Tốc độ sinh ảnh thực tế chỉ ~3.3 giây/ảnh.
+- **Định dạng gửi**: `application/json` chứa `prompt`, `steps: 4`, và `seed` tùy chọn (không gửi null seed).
+- **Kích thước**: Chuẩn 1024 × 1024 px. Hiển thị tương thích mọi tỷ lệ khung hình (1:1, 4:3, 16:9, 4:5) qua cơ chế fit/cover trên giao diện và PDF.
+- **Kết quả trả về**: JSON chứa Base64 `result.image`. Tốc độ sinh ảnh thực tế ~5.1 giây/ảnh.
 ### 4.2 Lớp chuẩn hóa và dịch Prompt: `AiImagePromptBuilder` & `IAiPromptTranslator`
 Để mô hình FLUX hiểu chính xác nội dung công thức tiếng Việt nhưng vẫn đảm bảo phong cách thương hiệu R&D:
 1. **Tách nguồn tiếng Việt**: `AiImagePromptBuilder.BuildVietnameseSourcePrompt` tổng hợp tên công thức (`Recipe.Name`), thứ tự bước (`SortOrder`), nội dung hướng dẫn (`Instruction`), và ghi chú trực quan tùy chọn (`userBrief` giới hạn 500 ký tự) hoàn toàn bằng tiếng Việt.

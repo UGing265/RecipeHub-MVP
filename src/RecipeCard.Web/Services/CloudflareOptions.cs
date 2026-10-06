@@ -6,7 +6,7 @@ public class CloudflareOptions
 
     public string AccountId { get; set; } = string.Empty;
     public string ApiToken { get; set; } = string.Empty;
-    public string Model { get; set; } = "@cf/bytedance/stable-diffusion-xl-lightning";
+    public string Model { get; set; } = "@cf/black-forest-labs/flux-1-schnell";
 
     public void Validate()
     {
