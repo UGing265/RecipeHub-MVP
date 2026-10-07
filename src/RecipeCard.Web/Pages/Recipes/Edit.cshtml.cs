@@ -752,8 +752,17 @@ public class EditModel(
             var ings = recipe.Ingredients.Select(ri => (ri.Ingredient.Name, ri.Quantity, ri.Ingredient.DefaultUnit));
             var steps = recipe.Steps.OrderBy(s => s.SortOrder).Select(s => (s.SortOrder, s.Instruction));
             var sourcePrompt = _promptBuilder.BuildFinalProductSourcePrompt(recipe.Name, ings, steps, recipe.GeneralNote, userBrief);
-            var translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
-            fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, translated);
+            string translated;
+            try
+            {
+                translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
+                fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, translated);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
+                return RedirectToPage(new { id });
+            }
             recipe.FinalImageAspectRatioPreset = targetPreset;
         }
         else
@@ -781,8 +790,17 @@ public class EditModel(
                 .Select(s => (s.SortOrder, s.Instruction));
 
             var sourcePrompt = _promptBuilder.BuildStepSourcePrompt(recipe.Name, ings, priorSteps, step.SortOrder, step.Instruction, userBrief);
-            var translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
-            fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, translated);
+            string translated;
+            try
+            {
+                translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
+                fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, translated);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
+                return RedirectToPage(new { id });
+            }
             step.ImageAspectRatioPreset = targetPreset;
         }
 

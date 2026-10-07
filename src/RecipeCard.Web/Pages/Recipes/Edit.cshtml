@@ -164,9 +164,17 @@
                                             }
                                         </select>
                                     </div>
-                                    <div class="col-md-7 d-flex gap-2">
-                                        <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@Model.ActiveFinalDraft.UserBrief" />
-                                        <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                    <div class="col-md-7 d-flex flex-column gap-1">
+                                        <div class="d-flex gap-2">
+                                            <input type="text" id="regenUserBriefInput" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@Model.ActiveFinalDraft.UserBrief" />
+                                            <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-1 mt-1">
+                                            <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('regenUserBriefInput').value='Quán cafe phong cách camping Phê La Đà Lạt, ly đặt trên bàn xếp cắm trại bằng gỗ, ghế dù canvas, nền rải sỏi đá, ánh nắng chiều ấm áp';">Camping Phê La</button>
+                                            <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('regenUserBriefInput').value='Ly lùn miệng rộng dáng tumbler rocks glass đế dày, rộng ngang';">Ly lùn miệng rộng</button>
+                                            <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('regenUserBriefInput').value='Quán cafe phong cách wabi-sabi Nhật Bản, đặt trên thớt gỗ và khăn vải thô, có chổi đánh trà tre chasen mờ phía sau, mặt bàn đá xám';">Wabi-sabi Nhật</button>
+                                            <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('regenUserBriefInput').value='Phông nền studio tối giản, phông trơn trung tính, ánh sáng dịu, ly nước đặt chính giữa';">Studio tối giản</button>
+                                        </div>
                                     </div>
                                 </form>
                             </details>
@@ -216,7 +224,13 @@
                                 </select>
                             </div>
                             <div class="mb-2">
-                                <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu thêm (tối đa 500 ký tự)..." maxlength="500" />
+                                <input type="text" id="finalUserBriefInput" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu thêm (tối đa 500 ký tự)..." maxlength="500" />
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('finalUserBriefInput').value='Quán cafe phong cách camping Phê La Đà Lạt, ly đặt trên bàn xếp cắm trại bằng gỗ, ghế dù canvas, nền rải sỏi đá, ánh nắng chiều ấm áp';">Camping Phê La</button>
+                                    <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('finalUserBriefInput').value='Ly lùn miệng rộng dáng tumbler rocks glass đế dày, rộng ngang';">Ly lùn miệng rộng</button>
+                                    <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('finalUserBriefInput').value='Quán cafe phong cách wabi-sabi Nhật Bản, đặt trên thớt gỗ và khăn vải thô, có chổi đánh trà tre chasen mờ phía sau, mặt bàn đá xám';">Wabi-sabi Nhật</button>
+                                    <button type="button" class="badge-pill-soft border-0 cursor-pointer" style="font-size: 11px; padding: 2px 8px;" onclick="document.getElementById('finalUserBriefInput').value='Phông nền studio tối giản, phông trơn trung tính, ánh sáng dịu, ly nước đặt chính giữa';">Studio tối giản</button>
+                                </div>
                             </div>
                             <button type="submit" class="btn-mobbin-primary btn-mobbin-sm w-100">Sinh ảnh AI thành phẩm</button>
                         </form>
