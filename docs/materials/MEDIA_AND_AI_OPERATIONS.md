@@ -346,3 +346,38 @@ dotnet test
 | **Lỗi khi gọi tạo ảnh AI ("Dịch vụ AI không thể xử lý...")** | `AccountId` hoặc `ApiToken` Cloudflare không chính xác, hoặc tài khoản Cloudflare bị giới hạn hạn mức (Rate limit/Quota) | Kiểm tra `ApiToken` phải có quyền `Workers AI Read`. Xem chi tiết thông báo lỗi trong log ứng dụng. |
 | **Không thể xóa ảnh trong Thư viện Media** | Ảnh đang được liên kết trong ít nhất một bước công thức | Kiểm tra danh sách công thức đang sử dụng hiển thị trên thẻ ảnh; xóa hoặc thay thế ảnh trong các bước công thức đó trước khi xóa khỏi thư viện. |
 | **Thẻ ảnh hiển thị trạng thái "Lỗi xóa"** | Mạng gián đoạn trong lúc gọi Cloudinary Destroy API | Đảm bảo kết nối Internet ổn định và bấm nút **"Thử lại xóa"** trên thẻ ảnh để hoàn tất việc dọn dẹp. |
+
+---
+
+## 9. Vận hành xuất PDF tổng hợp công thức (Recipe Booklet Export)
+
+### 9.1 Tính năng và luồng xử lý
+- **Màn hình danh sách công thức (`/Recipes/Index`)**:
+  - Hỗ trợ chọn checkbox hàng loạt (tối đa 50 công thức sẵn sàng mỗi lần xuất).
+  - Hộp công cụ toolbar hiển thị số lượng được chọn dạng live counter `Đã chọn X/50` và nút "Xuất PDF đã chọn".
+  - Hàng chưa đủ điều kiện ($\le 0$ nguyên liệu hoặc $\le 0$ bước) tự động bị vô hiệu hóa checkbox (`disabled`).
+  - Nút chọn tất cả (header) tự động chọn tối đa 50 công thức đầu tiên theo thứ tự `Id DESC`.
+- **Hợp đồng POST và Xác thực (All-or-Nothing)**:
+  - Endpoint: `POST /Recipes?handler=ExportSelected`.
+  - Bắt buộc token Antiforgery qua Form data (`__RequestVerificationToken`).
+  - Kiểm tra tính hợp lệ toàn-hoặc-không (all-or-nothing):
+    1. Trùng lặp ID hoặc ID không hợp lệ $\rightarrow$ HTTP 400.
+    2. Danh sách rỗng $\rightarrow$ HTTP 400.
+    3. Vượt quá 50 công thức $\rightarrow$ HTTP 400.
+    4. Chứa ID không tồn tại trong hệ thống $\rightarrow$ HTTP 400 (liệt kê danh sách ID thiếu theo thứ tự `Id DESC`).
+    5. Chứa bất kỳ công thức nào chưa sẵn sàng $\rightarrow$ HTTP 400 (liệt kê tên và mã công thức theo thứ tự `Id DESC`).
+- **Định dạng tài liệu đầu ra**:
+  - Tên file xuất bản: `recipe-collection-yyyyMMdd-HHmm.pdf`.
+  - Cấu trúc: Trang bìa (Trang 1) $\rightarrow$ Mục lục TOC (tự phân trang nếu nhiều mục) $\rightarrow$ Các trang công thức chi tiết.
+  - Bìa tài liệu: Phía trái khối Ink đen chữ trắng với thông tin "BỘ HƯỚNG DẪN / PHA CHẾ SẢN PHẨM", "Phòng đào tạo - Phê La", "Xuất bởi R&D Recipe Hub • {Ngày} • {Số lượng} công thức". Phía phải chứa logo vector SVG chính thức (`src/RecipeCard.Web/wwwroot/images/brand/phe-la-logo.svg`).
+
+### 9.2 Quản lý tài nguyên & Media Pipeline
+- Thư viện chuẩn hóa hình ảnh: `SixLabors.ImageSharp` 3.1.12.
+- Giới hạn tải ảnh:
+  - Concurrency tối đa: 4 luồng tải mạng song song, 2 luồng giải mã/nén ảnh song song (`SemaphoreSlim`).
+  - Input cap: tối đa 8 MiB mỗi ảnh, kích thước không vượt quá 6000 px và 16 MP.
+  - Output cap: mỗi ảnh nén JPEG chất lượng 82/72/62 xuống $\le$ 750 KiB.
+  - Giới hạn tổng đợt (batch budget): tối đa 64 MiB encoded data và 75 MP decoded. Ảnh vượt hạn mức sẽ tự động được bỏ qua mà không làm hỏng tiến trình xuất tài liệu.
+- Dọn dẹp tệp tạm:
+  - Mọi ảnh nén tạm được ghi vào thư mục `%TEMP%/recipe-card-pdf/{guid}/`.
+  - Lớp `RecipePdfModelBatch` triển khai `IAsyncDisposable`, bảo đảm xóa toàn bộ thư mục và tệp tạm ngay sau khi sinh PDF hoặc khi xảy ra hủy bỏ (`CancellationToken`).
