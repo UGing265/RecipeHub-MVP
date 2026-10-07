@@ -32,17 +32,16 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
     public const int MaxUserBriefLength = 500;
     public const int MaxFinalPromptLength = AiPromptTranslationConstants.MaxFinalPromptLength;
     public const string StepCanonicalStyle =
-        "Clean commercial beverage process photography, shot on 85mm lens, realistic studio lighting, clean neutral bar background, 4k. " +
-        "A single pure photograph of the beverage preparation action. " +
-        "Only bar professional hands or forearms visible performing the action; no full person, no face, no head, no body. " +
-        "Strictly no extra equipment, no extra machinery, no extra ingredients beyond the target. " +
-        "Absolutely pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO title, NO banner, NO recipe text, NO poster layout, NO infographic, NO watermark.";
+        "Commercial beverage preparation photography, extreme close-up first-person POV shot angled down at the bar counter, 4k. " +
+        "Top-down and 45-degree close-up focus directly on the hands and tools on the work surface. " +
+        "Workstation tabletop perspective: hands and the vessel are the sole visible subjects, empty unoccupied background. " +
+        "Strictly pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO watermark.";
 
     public const string FinalProductCanonicalStyle =
-        "Commercial food and beverage showcase photography, beautiful single drink hero shot, shot on 85mm lens, realistic soft studio lighting, clean neutral background, 4k. " +
-        "A single pure photograph of the finished served drink ready to enjoy. " +
-        "No human hands, no people, no preparation process, no preparation steps, no pouring action, no shaker action, no blender action, no cluttered props. " +
-        "Absolutely pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO title, NO banner, NO recipe text, NO poster layout, NO infographic, NO watermark.";
+        "High-end commercial beverage product photography, shot at a 45-degree angle showing both the drink surface and the glass profile, centered hero shot, the single beverage glass is prominently featured, fully visible with comfortable space above and below, 4k. " +
+        "Exquisite drink presentation, served in a wide short tumbler glass with generous width, pure vibrant beverage colors, clear sparkling ice cubes, condensation water droplets on glass, soft natural lighting and shadow. " +
+        "Clean aesthetic composition, tasteful background styling harmonizing with the beverage. " +
+        "Strictly pure photograph only: NO text, NO typography, NO words, NO letters, NO numbers, NO labels, NO logo, NO watermark.";
 
     public const string DefaultStyleGuideline = StepCanonicalStyle;
 
@@ -70,7 +69,7 @@ public class AiImagePromptBuilder : IAiImagePromptBuilder
 
         var sb = new StringBuilder();
 
-        sb.AppendLine("TARGET: STEP INSTRUCTION");
+        sb.AppendLine("TARGET: STEP ACTION");
         sb.AppendLine($"RECIPE: {recipeName.Trim()}");
 
         var ingredientList = ingredients?.ToList() ?? [];

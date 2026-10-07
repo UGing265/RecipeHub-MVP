@@ -30,7 +30,7 @@ public class AiImagePromptBuilderTests
             currentInstruction: "Đong 30ml sữa đặc vào ly.",
             userBrief: "Ly thủy tinh cao");
 
-        Assert.Contains("TARGET: STEP INSTRUCTION", prompt);
+        Assert.Contains("TARGET: STEP ACTION", prompt);
         Assert.Contains("RECIPE: Trà sữa truyền thống", prompt);
         Assert.Contains("INGREDIENTS:", prompt);
         Assert.Contains("- Trà đen: 10 g", prompt);
@@ -85,15 +85,16 @@ public class AiImagePromptBuilderTests
 
         var stepPrompt = _builder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, englishText);
         Assert.Contains(englishText, stepPrompt);
-        Assert.Contains("Clean commercial beverage process photography", stepPrompt);
-        Assert.Contains("Only bar professional hands or forearms visible", stepPrompt);
-        Assert.DoesNotContain("Commercial food and beverage showcase photography", stepPrompt);
+        Assert.Contains("Commercial beverage preparation photography", stepPrompt);
+        Assert.Contains("extreme close-up first-person POV shot", stepPrompt);
+        Assert.DoesNotContain("High-end commercial beverage product photography", stepPrompt);
 
         var finalPrompt = _builder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, englishText);
         Assert.Contains(englishText, finalPrompt);
-        Assert.Contains("Commercial food and beverage showcase photography", finalPrompt);
-        Assert.Contains("No human hands, no people", finalPrompt);
-        Assert.DoesNotContain("Clean commercial beverage process photography", finalPrompt);
+        Assert.Contains("High-end commercial beverage product photography", finalPrompt);
+        Assert.Contains("shot at a 45-degree angle", finalPrompt);
+        Assert.Contains("fully visible with comfortable space above and below", finalPrompt);
+        Assert.DoesNotContain("Clean commercial beverage action photography", finalPrompt);
     }
 
     [Fact]
