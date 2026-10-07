@@ -19,11 +19,33 @@
     <div class="p-3 mb-4 rounded-pill d-flex align-items-center justify-content-between" 
          style="background-color: var(--color-canvas-soft); border: 1px solid var(--color-hairline); color: var(--color-ink); font-size: 14px;">
         <div class="d-flex align-items-center gap-2">
-            <span class="text-success fw-bold">✓</span>
+            <span class="fw-bold" style="color: var(--color-ink);">✓</span>
             <span>@Model.SuccessMessage</span>
         </div>
     </div>
 }
+
+<form id="recipe-booklet-form" method="post" asp-page-handler="ExportSelected" class="mb-4">
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="booklet-validation-summary mb-3" role="alert">
+            <div asp-validation-summary="All"></div>
+        </div>
+    }
+    <div class="booklet-toolbar p-3 rounded-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3"
+         style="background-color: var(--color-canvas-soft); border: 1px solid var(--color-hairline);">
+        <div class="d-flex flex-column gap-1">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold" style="color: var(--color-ink);" id="selection-counter" aria-live="polite">Đã chọn 0/50</span>
+                <span class="text-muted" style="font-size: 13px;">— Tối đa 50 công thức sẵn sàng mỗi lần xuất</span>
+            </div>
+            <div id="selection-warning" class="text-muted small" style="display: none;"></div>
+        </div>
+        <button type="submit" id="btn-export-booklet" class="btn-mobbin-primary" disabled>
+            Xuất PDF đã chọn
+        </button>
+    </div>
+</form>
 
 @if (Model.Recipes.Count == 0)
 {
@@ -38,19 +60,44 @@ else
         <table class="mobbin-table">
             <thead>
                 <tr>
-                    <th style="width: 70px;">STT</th>
+                    <th style="width: 48px;" class="text-center">
+                        <input type="checkbox" id="select-all-recipes" class="form-check-input booklet-checkbox" aria-label="Chọn tất cả công thức sẵn sàng" />
+                    </th>
+                    <th style="width: 60px;">STT</th>
                     <th>Tên công thức</th>
-                    <th style="width: 150px;">Nguyên liệu</th>
-                    <th style="width: 130px;">Quy trình</th>
+                    <th style="width: 140px;">Nguyên liệu</th>
+                    <th style="width: 120px;">Quy trình</th>
                     <th style="width: 180px;">Trạng thái</th>
-                    <th style="width: 260px;" class="text-end">Thao tác</th>
+                    <th style="width: 250px;" class="text-end">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 @{ int stt = 1; }
                 @foreach (var item in Model.Recipes)
                 {
+                    var isChecked = Model.SelectedRecipeIds.Contains(item.Id);
                     <tr>
+                        <td class="text-center">
+                            @if (item.IsReady)
+                            {
+                                <input type="checkbox" 
+                                       form="recipe-booklet-form" 
+                                       name="SelectedRecipeIds" 
+                                       value="@item.Id" 
+                                       class="form-check-input booklet-checkbox recipe-item-checkbox" 
+                                       data-eligible="true" 
+                                       aria-label="Chọn công thức @item.Name" 
+                                       @(isChecked ? "checked" : "") />
+                            }
+                            else
+                            {
+                                <input type="checkbox" 
+                                       class="form-check-input booklet-checkbox" 
+                                       disabled 
+                                       aria-disabled="true" 
+                                       title="Công thức chưa đủ điều kiện (cần ít nhất 1 nguyên liệu và 1 bước)" />
+                            }
+                        </td>
                         <td class="text-muted" style="font-size: 13px;">@(stt++)</td>
                         <td>
                             <div class="d-flex align-items-center gap-3">
@@ -86,14 +133,14 @@ else
                         <td>
                             @if (item.IsReady)
                             {
-                                <span class="badge-pill-soft" style="border-color: var(--color-ink); font-weight: 600;">
-                                    <span style="color: #2e7d32; margin-right: 4px;">●</span> Sẵn sàng xuất PDF
+                                <span class="badge-pill-soft" style="border-color: var(--color-ink); font-weight: 600; color: var(--color-ink);">
+                                    <span style="color: var(--color-ink); margin-right: 4px;">●</span> Sẵn sàng xuất PDF
                                 </span>
                             }
                             else
                             {
                                 <span class="badge-pill-soft text-muted">
-                                    <span style="color: #ed6c02; margin-right: 4px;">○</span> Chưa đủ dữ liệu
+                                    <span style="color: var(--color-text-faint); margin-right: 4px;">○</span> Chưa đủ dữ liệu
                                 </span>
                             }
                         </td>
@@ -111,4 +158,97 @@ else
             </tbody>
         </table>
     </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const maxCap = 50;
+            const selectAllCheckbox = document.getElementById('select-all-recipes');
+            const counterLabel = document.getElementById('selection-counter');
+            const exportButton = document.getElementById('btn-export-booklet');
+            const warningEl = document.getElementById('selection-warning');
+            const eligibleCheckboxes = Array.from(document.querySelectorAll('.recipe-item-checkbox[data-eligible="true"]'));
+
+            function updateUI() {
+                const checkedBoxes = eligibleCheckboxes.filter(cb => cb.checked);
+                const count = checkedBoxes.length;
+
+                counterLabel.textContent = `Đã chọn ${count}/${maxCap}`;
+                exportButton.disabled = count === 0;
+
+                // Sync header checkbox
+                if (eligibleCheckboxes.length === 0) {
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.disabled = true;
+                        selectAllCheckbox.checked = false;
+                        selectAllCheckbox.indeterminate = false;
+                    }
+                } else {
+                    const allSelected = eligibleCheckboxes.length > 0 && checkedBoxes.length === Math.min(eligibleCheckboxes.length, maxCap);
+                    const noneSelected = count === 0;
+                    if (selectAllCheckbox) {
+                        selectAllCheckbox.checked = allSelected;
+                        selectAllCheckbox.indeterminate = !allSelected && !noneSelected;
+                    }
+                }
+
+                // If reached limit (50), temporarily disable remaining unchecked eligible boxes
+                if (count >= maxCap) {
+                    eligibleCheckboxes.forEach(cb => {
+                        if (!cb.checked) {
+                            cb.disabled = true;
+                            cb.dataset.capped = "true";
+                        }
+                    });
+                } else {
+                    eligibleCheckboxes.forEach(cb => {
+                        if (cb.dataset.capped === "true") {
+                            cb.disabled = false;
+                            delete cb.dataset.capped;
+                        }
+                    });
+                }
+            }
+
+            eligibleCheckboxes.forEach(cb => {
+                cb.addEventListener('change', function (e) {
+                    const currentCount = eligibleCheckboxes.filter(c => c.checked).length;
+                    if (cb.checked && currentCount > maxCap) {
+                        cb.checked = false;
+                        if (warningEl) {
+                            warningEl.textContent = 'Chỉ có thể chọn tối đa 50 công thức.';
+                            warningEl.style.display = 'block';
+                            setTimeout(() => { warningEl.style.display = 'none'; }, 3000);
+                        }
+                    }
+                    updateUI();
+                });
+            });
+
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function () {
+                    if (this.checked) {
+                        let selectedCount = 0;
+                        eligibleCheckboxes.forEach(cb => {
+                            if (selectedCount < maxCap) {
+                                cb.checked = true;
+                                selectedCount++;
+                            } else {
+                                cb.checked = false;
+                            }
+                        });
+                    } else {
+                        eligibleCheckboxes.forEach(cb => {
+                            cb.checked = false;
+                        });
+                    }
+                    updateUI();
+                });
+            }
+
+            // Initialize on page load (preserves selection after POST 400)
+            updateUI();
+        });
+    </script>
 }
