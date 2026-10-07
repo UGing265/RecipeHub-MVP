@@ -17,6 +17,16 @@ colors:
   hairline: "#e0e0e0"
   accent: "#0066ff"
 
+  # Phê La Warm Tea Palette (Official Brand Palette for Recipe PDF Publications & Print SOPs)
+  tea-ink: "#3B2A1F"           # Deep tea brown for primary typography, document header blocks, dark covers
+  tea-ink-soft: "#5C4432"      # Soft roasted tea brown for body instructions and ingredient lines
+  tea-muted: "#806A59"         # Muted earthy brown for secondary notes, footers, page numbering
+  tea-accent: "#9A5B20"        # Earthy amber/caramel accent for recipe titles, section headers, badges
+  tea-accent-soft: "#E9C9A5"   # Warm cream/latte tint for recipe card top bars and cover metadata
+  tea-canvas-soft: "#FBF7F1"   # Warm ivory milk-foam canvas for table headers, metadata blocks, visual rails
+  tea-hairline: "#B58A62"      # Distinct tea-tinted border for main tables and primary containers
+  tea-hairline-soft: "#E9D8C8" # Soft milk-tea hairline for row dividers and subtle separations
+
 typography:
   display:
     fontFamily: Saans
@@ -538,6 +548,14 @@ The system is essentially shadow-free: no drop shadows appear on any card, butto
 **`ex-toast`** — Toast notification surface — feature-card shape + medium shadow.
 - Properties: `backgroundColor`, `rounded`, `padding`, `typography`
 
+
+### Document & PDF Publishing Specification
+
+**`recipe-pdf-document`** — Phê La Operational Recipe Card & Booklet Publication System (QuestPDF):
+- **Color Palette**: Tuân thủ bảng màu **Phê La Warm Tea Palette** (`#3B2A1F`, `#9A5B20`, `#E9C9A5`, `#FBF7F1`, `#B58A62`) để phản ánh đúng nhận diện thương hiệu trà Ô Long và SOP vận hành thực tế.
+- **Header / Top Bar**: Nền `{colors.tea-accent-soft}`, chữ tiêu đề `{colors.tea-accent}`, khối điểm nhấn `{colors.tea-accent}` và biểu tượng "P" `{colors.tea-ink}` trên nền trắng.
+- **Table & Content Structure**: Viền ngoài `{colors.tea-hairline}`, tiêu đề nhóm `{colors.tea-accent}`, nền nhóm `{colors.tea-canvas-soft}`, phân cách dòng `{colors.tea-hairline-soft}`.
+- **Booklet Cover (Bìa tổng hợp)**: Khối bên trái 58% nền `{colors.tea-ink}` với typography trắng và phụ đề `{colors.tea-accent-soft}`; Khối bên phải 42% nền `{colors.tea-canvas-soft}` hiển thị logo vector SVG chính thức.
 
 ## Do's and Don'ts
 

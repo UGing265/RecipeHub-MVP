@@ -6,8 +6,8 @@ Hướng dẫn quy chuẩn thiết kế, kiến trúc kỹ thuật và quy tắc
 
 ## 1. Hệ thống thiết kế (Visual Design System — `docs/materials/DESIGN.md`)
 
-Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **BẮT BUỘC** tuân thủ triệt để ngôn ngữ thiết kế từ `docs/materials/DESIGN.md` (phong cách Mobbin / Gallery-White Monochrome).
-
+Mọi giao diện web (Razor Pages) **BẮT BUỘC** tuân thủ triệt để ngôn ngữ thiết kế từ `docs/materials/DESIGN.md` (phong cách Mobbin / Gallery-White Monochrome).
+Tài liệu xuất bản in ấn (QuestPDF) tuân thủ quy chuẩn **Phê La Warm Tea Palette** (`#3B2A1F`, `#9A5B20`, `#E9C9A5`, `#FBF7F1`, `#B58A62`) đã được quy định chi tiết trong `docs/materials/DESIGN.md` để đảm bảo độ nhận diện của thương hiệu trà Ô Long và SOP thực tế.
 ### Bố cục khung ứng dụng (App Shell & Sidebar Navigation)
 - Thanh điều hướng chính của hệ thống được tổ chức dạng **Sidebar bên trái** (`.app-sidebar`, chiều rộng 260px) theo quy chuẩn `ex-app-shell-row` trong `docs/materials/DESIGN.md`:
   - Mục điều hướng "Nguyên liệu" (`/Ingredients/Index`) và "Công thức" (`/Recipes/Index`) nằm cố định trên sidebar.
@@ -83,7 +83,7 @@ Mọi giao diện web (Razor Pages) và tài liệu xuất bản (QuestPDF) **B�
 - ❌ **Không** dùng `box-shadow` để tạo độ nổi; chỉ dùng tint background và hairline 1px.
 - ❌ **Không** lạm dụng màu xanh `#0066ff` cho các badge hay nút thông thường.
 - ❌ **Không** tự ý chuyển sang Single Page Application (SPA), React/Vue hoặc thêm Web API riêng trừ khi có yêu cầu rõ ràng.
-- ❌ **Không** đổi layout PDF QuestPDF sang màu sắc khác ngoài palette Monochrome `#141414` đã thiết lập.
+- ❌ **Không** đổi layout PDF QuestPDF sang các màu sắc tùy tiện ngoài quy chuẩn **Phê La Warm Tea Palette** (`#3B2A1F`, `#9A5B20`, `#E9C9A5`, `#FBF7F1`, `#B58A62`) đã được phê duyệt trong `docs/materials/DESIGN.md`. Giao diện Web vẫn giữ nghiêm ngặt bảng màu Monochrome `#141414`.
 - ❌ **Không** xóa code kiểm tra magic bytes của ảnh hoặc bỏ qua việc xử lý transaction khi đổi thứ tự bước.
 
 ---
