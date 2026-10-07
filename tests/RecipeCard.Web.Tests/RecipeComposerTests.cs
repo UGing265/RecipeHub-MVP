@@ -205,7 +205,12 @@ public sealed class RecipeComposerTests : IDisposable
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        var indexPage = new IndexModel(db, _imageStorage);
+        var indexPage = new IndexModel(
+            db,
+            _imageStorage,
+            new RecipeCard.Web.Services.RecipePdfModelFactory(new RecipeCard.Web.Services.PdfMediaLoader(new TestHttpClientFactory(), _env, Microsoft.Extensions.Logging.Abstractions.NullLogger<RecipeCard.Web.Services.PdfMediaLoader>.Instance), Microsoft.Extensions.Logging.Abstractions.NullLogger<RecipeCard.Web.Services.RecipePdfModelFactory>.Instance),
+            _env,
+            TimeProvider.System);
         await indexPage.OnPostDeleteAsync(recipe.Id);
 
         Assert.Empty(await db.Recipes.ToListAsync());
@@ -224,4 +229,9 @@ public sealed class RecipeComposerTests : IDisposable
         return new FormFile(stream, 0, stream.Length, "file", filename);
     }
 
+
+    private sealed class TestHttpClientFactory : System.Net.Http.IHttpClientFactory
+    {
+        public System.Net.Http.HttpClient CreateClient(string name) => new();
+    }
 }

@@ -7,17 +7,15 @@ using QuestPDF.Fluent;
 using RecipeCard.Web.Data;
 using RecipeCard.Web.Models;
 using RecipeCard.Web.Pdf;
+using RecipeCard.Web.Services;
 
 namespace RecipeCard.Web.Pages.Recipes;
-
 public partial class PreviewModel(
     RecipeDbContext db,
-    IWebHostEnvironment environment,
-    IHttpClientFactory? httpClientFactory = null) : PageModel
+    IRecipePdfModelFactory pdfModelFactory) : PageModel
 {
     private readonly RecipeDbContext _db = db;
-    private readonly IWebHostEnvironment _env = environment;
-    private readonly IHttpClientFactory? _httpClientFactory = httpClientFactory;
+    private readonly IRecipePdfModelFactory _pdfModelFactory = pdfModelFactory;
     public Recipe Recipe { get; set; } = null!;
     public bool IsReady => Recipe != null && Recipe.Ingredients.Count > 0 && Recipe.Steps.Count > 0;
 
@@ -52,84 +50,8 @@ public partial class PreviewModel(
             return RedirectToPage(new { id });
         }
 
-        var webRoot = _env.WebRootPath;
-        if (string.IsNullOrEmpty(webRoot))
-        {
-            webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        }
-
-        var pdfModel = new RecipePdfModel
-        {
-            Title = recipe.Name,
-            GeneralNote = recipe.GeneralNote,
-            Ingredients = recipe.Ingredients
-                .Select((ri, idx) => new RecipePdfIngredientLine
-                {
-                    Stt = idx + 1,
-                    Name = ri.Ingredient.Name,
-                    Quantity = ri.Quantity,
-                    Unit = ri.Ingredient.DefaultUnit
-                })
-                .ToList(),
-            Steps = []
-        };
-
-        if (recipe.FinalMediaAsset != null && !string.IsNullOrEmpty(recipe.FinalMediaAsset.DeliveryUrl))
-        {
-            if (_httpClientFactory != null)
-            {
-                try
-                {
-                    using var client = _httpClientFactory.CreateClient("MediaDelivery");
-                    using var response = await client.GetAsync(recipe.FinalMediaAsset.DeliveryUrl, HttpCompletionOption.ResponseHeadersRead);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        pdfModel.HeroImageBytes = await response.Content.ReadAsByteArrayAsync();
-                    }
-                }
-                catch
-                {
-                    // Graceful fallback: PDF does not fail if hero image fetch fails
-                }
-            }
-        }
-        foreach (var s in recipe.Steps.OrderBy(s => s.SortOrder))
-        {
-            var stepLine = new RecipePdfStepLine
-            {
-                StepNumber = s.SortOrder,
-                Instruction = s.Instruction
-            };
-
-            if (s.MediaAsset != null && !string.IsNullOrEmpty(s.MediaAsset.DeliveryUrl))
-            {
-                stepLine.IsAiIllustration = s.MediaAsset.SourceType == MediaSourceType.AiIllustration;
-                if (_httpClientFactory != null)
-                {
-                    try
-                    {
-                        using var client = _httpClientFactory.CreateClient("MediaDelivery");
-                        using var response = await client.GetAsync(s.MediaAsset.DeliveryUrl, HttpCompletionOption.ResponseHeadersRead);
-                        if (response.IsSuccessStatusCode)
-                        {
-                            stepLine.ImageBytes = await response.Content.ReadAsByteArrayAsync();
-                        }
-                    }
-                    catch
-                    {
-                        // Graceful fallback: PDF does not fail if remote image cannot be fetched
-                    }
-                }
-            }
-            else if (!string.IsNullOrEmpty(s.ImageFileName))
-            {
-                stepLine.ImageFullPath = Path.Combine(webRoot, "uploads", "steps", s.ImageFileName);
-            }
-
-            pdfModel.Steps.Add(stepLine);
-        }
-
-        var doc = new RecipePdfDocument(pdfModel);
+        await using var batch = await _pdfModelFactory.CreateAsync([recipe], HttpContext?.RequestAborted ?? CancellationToken.None);
+        var doc = new RecipePdfDocument(batch.Models.Single());
         var pdfBytes = doc.GeneratePdf();
 
         var slug = SlugRegex().Replace(recipe.Name, "-").Trim('-').ToLowerInvariant();

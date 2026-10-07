@@ -47,8 +47,11 @@ builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiPromptTranslator, Reci
 });
 builder.Services.AddHttpClient("MediaDelivery", client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(10);
 });
+builder.Services.AddScoped<RecipeCard.Web.Services.PdfMediaLoader>();
+builder.Services.AddScoped<RecipeCard.Web.Services.IRecipePdfModelFactory, RecipeCard.Web.Services.RecipePdfModelFactory>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddSingleton<RecipeCard.Web.Services.IAiDraftFileStore, RecipeCard.Web.Services.AiDraftFileStore>();
 builder.Services.AddSingleton<RecipeCard.Web.Services.IAiImagePromptBuilder, RecipeCard.Web.Services.AiImagePromptBuilder>();
@@ -148,3 +151,5 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 app.Run();
+
+public partial class Program { }

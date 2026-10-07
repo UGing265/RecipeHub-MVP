@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
@@ -19,6 +20,7 @@ public sealed class RecipePdfExportTests : IDisposable
     private readonly DbContextOptions<RecipeDbContext> _options;
     private readonly string _testRoot;
     private readonly FakeWebHostEnvironment _env;
+    private readonly RecipeCard.Web.Services.IRecipePdfModelFactory _factory;
 
     public RecipePdfExportTests()
     {
@@ -36,10 +38,17 @@ public sealed class RecipePdfExportTests : IDisposable
 
         _testRoot = Path.Combine(Path.GetTempPath(), $"RecipeCardPdfTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(Path.Combine(_testRoot, "uploads", "steps"));
-
         _env = new FakeWebHostEnvironment { WebRootPath = _testRoot };
-    }
 
+        var httpFactory = new FakeHttpClientFactory();
+        var loader = new RecipeCard.Web.Services.PdfMediaLoader(
+            httpFactory,
+            _env,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<RecipeCard.Web.Services.PdfMediaLoader>.Instance);
+        _factory = new RecipeCard.Web.Services.RecipePdfModelFactory(
+            loader,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<RecipeCard.Web.Services.RecipePdfModelFactory>.Instance);
+    }
     public void Dispose()
     {
         _connection.Dispose();
@@ -61,7 +70,7 @@ public sealed class RecipePdfExportTests : IDisposable
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        var page = new PreviewModel(db, _env);
+        var page = new PreviewModel(db, _factory);
         var result = await page.OnGetPdfAsync(recipe.Id);
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
@@ -82,7 +91,7 @@ public sealed class RecipePdfExportTests : IDisposable
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        var page = new PreviewModel(db, _env);
+        var page = new PreviewModel(db, _factory);
         var result = await page.OnGetPdfAsync(recipe.Id);
 
         var redirect = Assert.IsType<RedirectToPageResult>(result);
@@ -116,7 +125,7 @@ public sealed class RecipePdfExportTests : IDisposable
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        var page = new PreviewModel(db, _env);
+        var page = new PreviewModel(db, _factory);
         var result = await page.OnGetPdfAsync(recipe.Id);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
@@ -196,12 +205,17 @@ public sealed class RecipePdfExportTests : IDisposable
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync();
 
-        var page = new PreviewModel(db, _env);
+        var page = new PreviewModel(db, _factory);
         var result = await page.OnGetPdfAsync(recipe.Id);
 
         var fileResult = Assert.IsType<FileContentResult>(result);
         var header = Encoding.ASCII.GetString(fileResult.FileContents, 0, 5);
         Assert.Equal("%PDF-", header);
+    }
+
+    private sealed class FakeHttpClientFactory : System.Net.Http.IHttpClientFactory
+    {
+        public System.Net.Http.HttpClient CreateClient(string name) => new();
     }
 
 }
