@@ -136,6 +136,10 @@ public class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbCont
             b.Property(d => d.Model)
                 .IsRequired()
                 .HasMaxLength(100);
+            b.Property(d => d.Provider)
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(50);
             b.Property(d => d.TemporaryFileName)
                 .IsRequired()
                 .HasMaxLength(255);

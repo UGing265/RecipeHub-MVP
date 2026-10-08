@@ -30,6 +30,8 @@ public class AiImageDraft
     public string? UserBrief { get; set; }
 
     public string Model { get; set; } = "@cf/black-forest-labs/flux-1-schnell";
+    public AiImageProvider Provider { get; set; } = AiImageProvider.CloudflareSchnell;
+
 
     public string TemporaryFileName { get; set; } = string.Empty;
 
