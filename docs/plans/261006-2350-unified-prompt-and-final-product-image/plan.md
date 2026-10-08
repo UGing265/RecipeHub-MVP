@@ -1,7 +1,7 @@
 ---
 title: "Prompt thống nhất và ảnh thành phẩm FLUX.2 Klein 4B"
 description: "Dựng prompt có cấu trúc từ full context, chuẩn hóa dịch trung thành Gemini/Llama, chuyển sinh ảnh sang FLUX.2 Klein 4B với 4 preset tỷ lệ, bổ sung ảnh thành phẩm hỗ trợ Upload/Library/AI hiển thị đa bề mặt."
-status: planned
+status: superseded
 priority: P1
 effort: 14h
 branch: feat/pdf-layout
@@ -10,6 +10,7 @@ blockedBy: [261006-2153-gemini-translation-round-robin]
 blocks: []
 created: 2026-10-06
 spec: docs/superpowers/specs/2026-10-06-unified-ai-image-prompt-design.md
+supersededBy: ../261008-0200-dual-ai-provider-services/plan.md
 ---
 
 # Kế hoạch triển khai: Prompt thống nhất và ảnh thành phẩm công thức

@@ -381,3 +381,14 @@ dotnet test
 - Dọn dẹp tệp tạm:
   - Mọi ảnh nén tạm được ghi vào thư mục `%TEMP%/recipe-card-pdf/{guid}/`.
   - Lớp `RecipePdfModelBatch` triển khai `IAsyncDisposable`, bảo đảm xóa toàn bộ thư mục và tệp tạm ngay sau khi sinh PDF hoặc khi xảy ra hủy bỏ (`CancellationToken`).
+
+---
+
+## 10. Kế hoạch tích hợp đa nhà cung cấp hình ảnh AI (Dual AI Providers)
+
+### 10.1 Trạng thái tích hợp hiện tại
+- **Cloudflare Workers AI (`@cf/black-forest-labs/flux-1-schnell`)**: Đang hoạt động mặc định, ổn định, sinh ảnh nhanh.
+- **RunPod Serverless (`FLUX.1 Dev` - Endpoint `rfxqcmcf0se7lb`)**: **ĐÃ XÁC MINH CONTRACT & TRIỂN KHAI ADAPTER**.
+  - Output Schema đã xác minh thực tế: `{ "b64_json": "<base64_string>", "revised_prompt": "...", "url": null }`.
+  - Adapter: `RunPodAiImageGenerator` trích xuất ưu tiên từ `b64_json`, hỗ trợ `url` kèm cơ chế chống SSRF và cấm chuyển hướng.
+  - Cấu hình: Cần `AiImage:RunPodEnabled=true` và lưu API key trong `dotnet user-secrets`.
