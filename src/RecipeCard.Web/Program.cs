@@ -16,6 +16,10 @@ builder.Services.Configure<RecipeCard.Web.Services.CloudflareOptions>(
     builder.Configuration.GetSection(RecipeCard.Web.Services.CloudflareOptions.SectionName));
 builder.Services.Configure<RecipeCard.Web.Services.GeminiOptions>(
     builder.Configuration.GetSection(RecipeCard.Web.Services.GeminiOptions.SectionName));
+builder.Services.Configure<RecipeCard.Web.Services.AiImageOptions>(
+    builder.Configuration.GetSection(RecipeCard.Web.Services.AiImageOptions.SectionName));
+builder.Services.Configure<RecipeCard.Web.Services.RunPodOptions>(
+    builder.Configuration.GetSection(RecipeCard.Web.Services.RunPodOptions.SectionName));
 
 builder.Services.AddSingleton<RecipeCard.Web.Services.GeminiKeyCursor>();
 
@@ -37,6 +41,14 @@ builder.Services.AddHttpClient<RecipeCard.Web.Services.IAiImageGenerator, Recipe
 {
     client.Timeout = TimeSpan.FromSeconds(120);
 });
+builder.Services.AddHttpClient<RecipeCard.Web.Services.RunPodAiImageGenerator>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(300);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false
+});
+builder.Services.AddScoped<RecipeCard.Web.Services.IAiImageGeneratorRouter, RecipeCard.Web.Services.AiImageGeneratorRouter>();
 builder.Services.AddHttpClient<RecipeCard.Web.Services.CloudflareWorkersAiPromptTranslator>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
@@ -57,6 +69,7 @@ builder.Services.AddSingleton<RecipeCard.Web.Services.IAiDraftFileStore, RecipeC
 builder.Services.AddSingleton<RecipeCard.Web.Services.IAiImagePromptBuilder, RecipeCard.Web.Services.AiImagePromptBuilder>();
 builder.Services.AddScoped<RecipeCard.Web.Services.LegacyStepImageMigrationService>();
 builder.Services.AddHostedService<RecipeCard.Web.Services.AiDraftCleanupHostedService>();
+builder.Services.AddScoped<RecipeCard.Web.Services.IRecipeImageService, RecipeCard.Web.Services.RecipeImageService>();
 builder.Services.AddDbContext<RecipeDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("RecipeDb")));
 

@@ -164,6 +164,12 @@
                                             }
                                         </select>
                                     </div>
+                                    <div class="col-md-5">
+                                        <select name="provider" class="form-select form-select-sm">
+                                            <option value="@RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell" selected="@(Model.ActiveFinalDraft.Provider == RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell || !Model.RunPodAvailable ? "selected" : null)">Cloudflare — FLUX.1 Schnell</option>
+                                            <option value="@RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev" disabled="@(!Model.RunPodAvailable ? "disabled" : null)" selected="@(Model.ActiveFinalDraft.Provider == RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev && Model.RunPodAvailable ? "selected" : null)">Runpod — FLUX.1 Dev @(!Model.RunPodAvailable ? "(Chưa khả dụng)" : "")</option>
+                                        </select>
+                                    </div>
                                     <div class="col-md-7 d-flex flex-column gap-1">
                                         <div class="d-flex gap-2">
                                             <input type="text" id="regenUserBriefInput" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@Model.ActiveFinalDraft.UserBrief" />
@@ -221,6 +227,13 @@
                                             @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
                                         </option>
                                     }
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label" style="font-size: 11.5px;">Nhà cung cấp / Model AI</label>
+                                <select name="provider" class="form-select form-select-sm">
+                                    <option value="@RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell" selected="@(Model.EffectiveDefaultProvider == RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell ? "selected" : null)">Cloudflare — FLUX.1 Schnell</option>
+                                    <option value="@RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev" disabled="@(!Model.RunPodAvailable ? "disabled" : null)" selected="@(Model.EffectiveDefaultProvider == RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev && Model.RunPodAvailable ? "selected" : null)">Runpod — FLUX.1 Dev @(!Model.RunPodAvailable ? "(Chưa khả dụng)" : "")</option>
                                 </select>
                             </div>
                             <div class="mb-2">
@@ -408,6 +421,12 @@
                                                                 }
                                                             </select>
                                                         </div>
+                                                        <div class="col-md-5">
+                                                            <select name="provider" class="form-select form-select-sm">
+                                                                <option value="@RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell" selected="@(activeDraft.Provider == RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell || !Model.RunPodAvailable ? "selected" : null)">Cloudflare — FLUX.1 Schnell</option>
+                                                                <option value="@RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev" disabled="@(!Model.RunPodAvailable ? "disabled" : null)" selected="@(activeDraft.Provider == RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev && Model.RunPodAvailable ? "selected" : null)">Runpod — FLUX.1 Dev @(!Model.RunPodAvailable ? "(Chưa khả dụng)" : "")</option>
+                                                            </select>
+                                                        </div>
                                                         <div class="col-md-7 d-flex gap-2">
                                                             <input type="text" name="userBrief" class="form-control form-control-sm" placeholder="Yêu cầu mới..." maxlength="500" value="@activeDraft.UserBrief" />
                                                             <button type="submit" class="btn-mobbin-outline btn-mobbin-sm flex-shrink-0">Tạo lại</button>
@@ -435,6 +454,13 @@
                                                                 @RecipeCard.Web.Services.AspectRatioPresetExtensions.ToDisplayName(preset)
                                                             </option>
                                                         }
+                                                    </select>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label" style="font-size: 12px;">Nhà cung cấp / Model AI</label>
+                                                    <select name="provider" class="form-select form-select-sm">
+                                                        <option value="@RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell" selected="@(Model.EffectiveDefaultProvider == RecipeCard.Web.Models.AiImageProvider.CloudflareSchnell ? "selected" : null)">Cloudflare — FLUX.1 Schnell</option>
+                                                        <option value="@RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev" disabled="@(!Model.RunPodAvailable ? "disabled" : null)" selected="@(Model.EffectiveDefaultProvider == RecipeCard.Web.Models.AiImageProvider.RunPodFluxDev && Model.RunPodAvailable ? "selected" : null)">Runpod — FLUX.1 Dev @(!Model.RunPodAvailable ? "(Chưa khả dụng)" : "")</option>
                                                     </select>
                                                 </div>
                                                 <div class="mb-2">

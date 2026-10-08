@@ -8,24 +8,48 @@ using RecipeCard.Web.Services;
 
 namespace RecipeCard.Web.Pages.Recipes;
 
-public class EditModel(
-    RecipeDbContext db,
-    IImageStorageService imageStorage,
-    IImageValidator? validator = null,
-    IAiImageGenerator? aiGenerator = null,
-    IAiDraftFileStore? draftStore = null,
-    IAiImagePromptBuilder? promptBuilder = null,
-    IAiPromptTranslator? promptTranslator = null) : PageModel
+public class EditModel : PageModel
 {
-    private readonly RecipeDbContext _db = db;
-    private readonly IImageStorageService _imageStorage = imageStorage;
-    private readonly IImageValidator _validator = validator ?? new ImageValidator();
-    private readonly IAiImageGenerator? _aiGenerator = aiGenerator;
-    private readonly IAiDraftFileStore? _draftStore = draftStore;
-    private readonly IAiImagePromptBuilder _promptBuilder = promptBuilder ?? new AiImagePromptBuilder();
-    private readonly IAiPromptTranslator? _promptTranslator = promptTranslator;
+    private readonly RecipeDbContext _db;
+    private readonly IImageStorageService _imageStorage;
+    private readonly IImageValidator _validator;
+    private readonly IRecipeImageService _recipeImageService;
 
+    public EditModel(
+        RecipeDbContext db,
+        IImageStorageService imageStorage,
+        IImageValidator? validator = null,
+        IAiImageGenerator? aiGenerator = null,
+        IAiDraftFileStore? draftStore = null,
+        IAiImagePromptBuilder? promptBuilder = null,
+        IAiPromptTranslator? promptTranslator = null,
+        IRecipeImageService? recipeImageService = null,
+        Microsoft.Extensions.Options.IOptions<AiImageOptions>? aiOptions = null,
+        IAiImageGeneratorRouter? aiRouter = null)
+    {
+        _db = db;
+        _imageStorage = imageStorage;
+        _validator = validator ?? new ImageValidator();
+        AiOptions = aiOptions?.Value ?? new AiImageOptions();
+        RunPodAvailable = AiOptions.RunPodEnabled
+            && aiRouter?.IsProviderAvailable(AiImageProvider.RunPodFluxDev) == true;
+        EffectiveDefaultProvider = AiOptions.DefaultProvider == AiImageProvider.RunPodFluxDev && !RunPodAvailable
+            ? AiImageProvider.CloudflareSchnell
+            : AiOptions.DefaultProvider;
+        _recipeImageService = recipeImageService ?? new RecipeImageService(
+            db,
+            promptBuilder ?? new AiImagePromptBuilder(),
+            imageStorage,
+            _validator,
+            aiRouter: aiRouter,
+            promptTranslator: promptTranslator,
+            draftStore: draftStore,
+            legacyAiGenerator: aiGenerator);
+    }
     public Recipe Recipe { get; set; } = null!;
+    public AiImageOptions AiOptions { get; set; } = new();
+    public bool RunPodAvailable { get; }
+    public AiImageProvider EffectiveDefaultProvider { get; }
     public List<SelectListItem> AvailableIngredients { get; set; } = [];
     public List<SelectListItem> AvailableMediaAssets { get; set; } = [];
     public AiImageDraft? ActiveFinalDraft { get; set; }
@@ -410,466 +434,95 @@ public class EditModel(
         return RedirectToPage(new { id });
     }
 
-    public async Task<IActionResult> OnPostGenerateFinalAiImageAsync(int id, AspectRatioPreset? preset, string? userBrief)
+    public async Task<IActionResult> OnPostGenerateFinalAiImageAsync(int id, AspectRatioPreset? preset, string? userBrief, AiImageProvider? provider = null)
     {
-        if (_aiGenerator == null || _draftStore == null)
-        {
-            ErrorMessage = "Dịch vụ AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
+        var ct = HttpContext?.RequestAborted ?? default;
+        var result = await _recipeImageService.GenerateFinalProductDraftAsync(id, preset, userBrief, provider, ct);
 
-        if (_promptTranslator == null)
-        {
-            ErrorMessage = "Dịch vụ dịch prompt AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
-
-        var recipe = await _db.Recipes
-            .Include(r => r.Ingredients).ThenInclude(ri => ri.Ingredient)
-            .Include(r => r.Steps)
-            .FirstOrDefaultAsync(r => r.Id == id);
-
-        if (recipe == null)
+        if (result.NotFound)
         {
             return NotFound();
         }
 
-        var activeDraft = await _db.AiImageDrafts
-            .FirstOrDefaultAsync(d => d.RecipeId == id && d.TargetKind == AiDraftTargetKind.FinalProduct && d.State == AiDraftState.Generated && d.ExpiresUtc > DateTime.UtcNow);
-
-        if (activeDraft != null)
+        if (!result.Success)
         {
-            ErrorMessage = "Công thức đã có một ảnh thành phẩm nháp AI đang chờ duyệt. Vui lòng chấp nhận hoặc bỏ ảnh trước khi tạo mới.";
-            return RedirectToPage(new { id });
+            ErrorMessage = result.ErrorMessage;
+        }
+        else if (result.SuccessMessage != null)
+        {
+            SuccessMessage = result.SuccessMessage;
         }
 
-        var targetPreset = preset ?? recipe.FinalImageAspectRatioPreset;
-        recipe.FinalImageAspectRatioPreset = targetPreset;
-
-        var ct = HttpContext?.RequestAborted ?? default;
-
-        string sourcePrompt;
-        try
-        {
-            var ings = recipe.Ingredients.Select(ri => (ri.Ingredient.Name, ri.Quantity, ri.Ingredient.DefaultUnit));
-            var steps = recipe.Steps.OrderBy(s => s.SortOrder).Select(s => (s.SortOrder, s.Instruction));
-            sourcePrompt = _promptBuilder.BuildFinalProductSourcePrompt(recipe.Name, ings, steps, recipe.GeneralNote, userBrief);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Dựng prompt thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        string translated;
-        try
-        {
-            translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        string fullPrompt;
-        try
-        {
-            fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, translated);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-            return RedirectToPage(new { id });
-        }
-
-        var (w, h) = targetPreset.ToDimensions();
-        var request = new AiImageGenerationRequest(fullPrompt, targetPreset, w, h);
-
-        GeneratedImage generated;
-        try
-        {
-            generated = await _aiGenerator.GenerateAsync(request, ct);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Tạo ảnh AI thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        var draftId = Guid.NewGuid();
-        string tempFileName;
-        try
-        {
-            tempFileName = await _draftStore.SaveDraftAsync(draftId, generated.ImageBytes, ".jpg");
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Lỗi lưu ảnh nháp tạm thời: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        var draft = new AiImageDraft
-        {
-            Id = draftId,
-            RecipeId = id,
-            RecipeStepId = null,
-            TargetKind = AiDraftTargetKind.FinalProduct,
-            AspectRatioPreset = targetPreset,
-            PromptSnapshot = fullPrompt,
-            UserBrief = string.IsNullOrWhiteSpace(userBrief) ? null : userBrief.Trim(),
-            Model = generated.Model,
-            TemporaryFileName = tempFileName,
-            State = AiDraftState.Generated,
-            CreatedAtUtc = DateTime.UtcNow,
-            ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
-        };
-
-        _db.AiImageDrafts.Add(draft);
-        await _db.SaveChangesAsync();
-
-        SuccessMessage = "Đã tạo ảnh nháp AI thành phẩm thành công. Hãy xem lại và chọn Chấp nhận hoặc Bỏ ảnh.";
         return RedirectToPage(new { id });
     }
 
     #endregion
 
     #region Step AI Image Handlers
-
-    public async Task<IActionResult> OnPostGenerateAiImageAsync(int id, int stepId, string? userBrief, AspectRatioPreset? preset = null)
+    public async Task<IActionResult> OnPostGenerateAiImageAsync(int id, int stepId, string? userBrief, AspectRatioPreset? preset = null, AiImageProvider? provider = null)
     {
-        if (_aiGenerator == null || _draftStore == null)
-        {
-            ErrorMessage = "Dịch vụ AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
-
-        if (_promptTranslator == null)
-        {
-            ErrorMessage = "Dịch vụ dịch prompt AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
-
-        var recipe = await _db.Recipes
-            .Include(r => r.Ingredients).ThenInclude(ri => ri.Ingredient)
-            .Include(r => r.Steps).ThenInclude(s => s.AiImageDrafts)
-            .FirstOrDefaultAsync(r => r.Id == id);
-
-        if (recipe == null)
-        {
-            return NotFound();
-        }
-
-        var step = recipe.Steps.FirstOrDefault(s => s.Id == stepId);
-        if (step == null)
-        {
-            return NotFound();
-        }
-
-        var activeDraft = step.AiImageDrafts
-            .FirstOrDefault(d => d.State == AiDraftState.Generated && d.ExpiresUtc > DateTime.UtcNow);
-        if (activeDraft != null)
-        {
-            ErrorMessage = "Bước này đã có một ảnh nháp AI đang chờ duyệt. Vui lòng chấp nhận hoặc bỏ ảnh hiện tại trước khi tạo mới.";
-            return RedirectToPage(new { id });
-        }
-
-        var targetPreset = preset ?? step.ImageAspectRatioPreset;
-        step.ImageAspectRatioPreset = targetPreset;
-
         var ct = HttpContext?.RequestAborted ?? default;
+        var result = await _recipeImageService.GenerateStepDraftAsync(id, stepId, preset, userBrief, provider, ct);
 
-        string sourcePrompt;
-        try
+        if (result.NotFound)
         {
-            var ings = recipe.Ingredients.Select(ri => (ri.Ingredient.Name, ri.Quantity, ri.Ingredient.DefaultUnit));
-            var priorSteps = recipe.Steps
-                .Where(s => s.SortOrder < step.SortOrder)
-                .OrderBy(s => s.SortOrder)
-                .Select(s => (s.SortOrder, s.Instruction));
-
-            sourcePrompt = _promptBuilder.BuildStepSourcePrompt(
-                recipe.Name,
-                ings,
-                priorSteps,
-                step.SortOrder,
-                step.Instruction,
-                userBrief);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Dựng prompt thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
+            return NotFound();
         }
 
-        string translated;
-        try
+        if (!result.Success)
         {
-            translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
+            ErrorMessage = result.ErrorMessage;
         }
-        catch (Exception ex)
+        else if (result.SuccessMessage != null)
         {
-            ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
+            SuccessMessage = result.SuccessMessage;
         }
 
-        string fullPrompt;
-        try
-        {
-            fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, translated);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-            return RedirectToPage(new { id });
-        }
-
-        var (w, h) = targetPreset.ToDimensions();
-        var request = new AiImageGenerationRequest(fullPrompt, targetPreset, w, h);
-
-        GeneratedImage generated;
-        try
-        {
-            generated = await _aiGenerator.GenerateAsync(request, ct);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Tạo ảnh AI thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        var draftId = Guid.NewGuid();
-        string tempFileName;
-        try
-        {
-            tempFileName = await _draftStore.SaveDraftAsync(draftId, generated.ImageBytes, ".jpg");
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Lỗi lưu ảnh nháp tạm thời: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        var draft = new AiImageDraft
-        {
-            Id = draftId,
-            RecipeId = id,
-            RecipeStepId = stepId,
-            TargetKind = AiDraftTargetKind.StepInstruction,
-            AspectRatioPreset = targetPreset,
-            PromptSnapshot = fullPrompt,
-            UserBrief = string.IsNullOrWhiteSpace(userBrief) ? null : userBrief.Trim(),
-            Model = generated.Model,
-            TemporaryFileName = tempFileName,
-            State = AiDraftState.Generated,
-            CreatedAtUtc = DateTime.UtcNow,
-            ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
-        };
-        _db.AiImageDrafts.Add(draft);
-        await _db.SaveChangesAsync();
-
-        SuccessMessage = "Đã tạo ảnh nháp AI thành công. Hãy xem lại và chọn Chấp nhận hoặc Bỏ ảnh.";
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnGetDraftImageAsync(int id, Guid draftId)
     {
-        if (_draftStore == null)
-        {
-            return NotFound();
-        }
-
-        var draft = await _db.AiImageDrafts
-            .FirstOrDefaultAsync(d => d.Id == draftId && d.RecipeId == id);
-
-        if (draft == null || draft.State != AiDraftState.Generated || draft.ExpiresUtc <= DateTime.UtcNow)
-        {
-            return NotFound();
-        }
-
-        try
-        {
-            var bytes = await _draftStore.ReadDraftAsync(draft.TemporaryFileName);
-            var info = _validator.ValidateBytes(bytes, draft.TemporaryFileName);
-            return File(bytes, info.MimeType);
-        }
-        catch
-        {
-            return NotFound();
-        }
-    }
-
-    public async Task<IActionResult> OnPostRegenerateAiImageAsync(int id, Guid draftId, string? userBrief, AspectRatioPreset? preset = null)
-    {
-        if (_aiGenerator == null || _draftStore == null)
-        {
-            ErrorMessage = "Dịch vụ AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
-
-        if (_promptTranslator == null)
-        {
-            ErrorMessage = "Dịch vụ dịch prompt AI chưa được cấu hình.";
-            return RedirectToPage(new { id });
-        }
-
-        var currentDraft = await _db.AiImageDrafts
-            .Include(d => d.RecipeStep)
-            .FirstOrDefaultAsync(d => d.Id == draftId && d.RecipeId == id);
-
-        if (currentDraft == null || currentDraft.State != AiDraftState.Generated)
-        {
-            ErrorMessage = "Bản nháp AI không tồn tại hoặc đã được xử lý trước đó.";
-            return RedirectToPage(new { id });
-        }
-
-        if (currentDraft.ExpiresUtc <= DateTime.UtcNow)
-        {
-            currentDraft.State = AiDraftState.Expired;
-            _draftStore.DeleteDraft(currentDraft.TemporaryFileName);
-            await _db.SaveChangesAsync();
-            ErrorMessage = "Ảnh nháp AI đã hết hạn. Vui lòng tạo lại ảnh mới.";
-            return RedirectToPage(new { id });
-        }
-
-        var targetPreset = preset ?? currentDraft.AspectRatioPreset;
-
         var ct = HttpContext?.RequestAborted ?? default;
-        string fullPrompt;
+        var result = await _recipeImageService.GetDraftImageAsync(id, draftId, ct);
 
-        if (currentDraft.TargetKind == AiDraftTargetKind.FinalProduct)
+        if (result.NotFound || !result.Success || result.Bytes == null || result.MimeType == null)
         {
-            var recipe = await _db.Recipes
-                .Include(r => r.Ingredients).ThenInclude(ri => ri.Ingredient)
-                .Include(r => r.Steps)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (recipe == null)
-            {
-                return NotFound();
-            }
-
-            var ings = recipe.Ingredients.Select(ri => (ri.Ingredient.Name, ri.Quantity, ri.Ingredient.DefaultUnit));
-            var steps = recipe.Steps.OrderBy(s => s.SortOrder).Select(s => (s.SortOrder, s.Instruction));
-            var sourcePrompt = _promptBuilder.BuildFinalProductSourcePrompt(recipe.Name, ings, steps, recipe.GeneralNote, userBrief);
-            string translated;
-            try
-            {
-                translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
-                fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.FinalProduct, translated);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
-                return RedirectToPage(new { id });
-            }
-            recipe.FinalImageAspectRatioPreset = targetPreset;
-        }
-        else
-        {
-            var recipe = await _db.Recipes
-                .Include(r => r.Ingredients).ThenInclude(ri => ri.Ingredient)
-                .Include(r => r.Steps)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (recipe == null)
-            {
-                return NotFound();
-            }
-
-            var step = recipe.Steps.FirstOrDefault(s => s.Id == currentDraft.RecipeStepId);
-            if (step == null)
-            {
-                return NotFound();
-            }
-
-            var ings = recipe.Ingredients.Select(ri => (ri.Ingredient.Name, ri.Quantity, ri.Ingredient.DefaultUnit));
-            var priorSteps = recipe.Steps
-                .Where(s => s.SortOrder < step.SortOrder)
-                .OrderBy(s => s.SortOrder)
-                .Select(s => (s.SortOrder, s.Instruction));
-
-            var sourcePrompt = _promptBuilder.BuildStepSourcePrompt(recipe.Name, ings, priorSteps, step.SortOrder, step.Instruction, userBrief);
-            string translated;
-            try
-            {
-                translated = await _promptTranslator.TranslateVietnameseToEnglishAsync(sourcePrompt, ct);
-                fullPrompt = _promptBuilder.AttachCanonicalStyle(AiDraftTargetKind.StepInstruction, translated);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Dịch mô tả cho AI thất bại: {ex.Message}";
-                return RedirectToPage(new { id });
-            }
-            step.ImageAspectRatioPreset = targetPreset;
+            return NotFound();
         }
 
-        var (w, h) = targetPreset.ToDimensions();
-        var request = new AiImageGenerationRequest(fullPrompt, targetPreset, w, h);
+        return File(result.Bytes, result.MimeType);
+    }
+    public async Task<IActionResult> OnPostRegenerateAiImageAsync(int id, Guid draftId, string? userBrief, AspectRatioPreset? preset = null, AiImageProvider? provider = null)
+    {
+        var ct = HttpContext?.RequestAborted ?? default;
+        var result = await _recipeImageService.RegenerateDraftAsync(id, draftId, preset, userBrief, provider, ct);
 
-        GeneratedImage generated;
-        try
+        if (result.NotFound)
         {
-            generated = await _aiGenerator.GenerateAsync(request, ct);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Tạo ảnh AI thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
+            return NotFound();
         }
 
-        var newDraftId = Guid.NewGuid();
-        string tempFileName;
-        try
+        if (!result.Success)
         {
-            tempFileName = await _draftStore.SaveDraftAsync(newDraftId, generated.ImageBytes, ".jpg");
+            ErrorMessage = result.ErrorMessage;
         }
-        catch (Exception ex)
+        else if (result.SuccessMessage != null)
         {
-            ErrorMessage = $"Lỗi lưu ảnh nháp tạm thời: {ex.Message}";
-            return RedirectToPage(new { id });
+            SuccessMessage = result.SuccessMessage;
         }
 
-        _draftStore.DeleteDraft(currentDraft.TemporaryFileName);
-        currentDraft.State = AiDraftState.Discarded;
-
-        var newDraft = new AiImageDraft
-        {
-            Id = newDraftId,
-            RecipeId = id,
-            RecipeStepId = currentDraft.RecipeStepId,
-            TargetKind = currentDraft.TargetKind,
-            AspectRatioPreset = targetPreset,
-            PromptSnapshot = fullPrompt,
-            UserBrief = string.IsNullOrWhiteSpace(userBrief) ? null : userBrief.Trim(),
-            Model = generated.Model,
-            TemporaryFileName = tempFileName,
-            State = AiDraftState.Generated,
-            CreatedAtUtc = DateTime.UtcNow,
-            ExpiresUtc = DateTime.UtcNow.AddMinutes(30)
-        };
-
-        _db.AiImageDrafts.Add(newDraft);
-        await _db.SaveChangesAsync();
-
-        SuccessMessage = "Đã tạo lại ảnh nháp AI mới.";
         return RedirectToPage(new { id });
     }
 
     public async Task<IActionResult> OnPostDiscardAiImageAsync(int id, Guid draftId)
     {
-        var draft = await _db.AiImageDrafts
-            .FirstOrDefaultAsync(d => d.Id == draftId && d.RecipeId == id);
+        var ct = HttpContext?.RequestAborted ?? default;
+        var result = await _recipeImageService.DiscardDraftAsync(id, draftId, ct);
 
-        if (draft != null)
+        if (result.SuccessMessage != null)
         {
-            if (_draftStore != null)
-            {
-                _draftStore.DeleteDraft(draft.TemporaryFileName);
-            }
-            draft.State = AiDraftState.Discarded;
-            await _db.SaveChangesAsync();
-            SuccessMessage = "Đã bỏ ảnh nháp AI.";
+            SuccessMessage = result.SuccessMessage;
         }
 
         return RedirectToPage(new { id });
@@ -877,121 +530,16 @@ public class EditModel(
 
     public async Task<IActionResult> OnPostAcceptAiImageAsync(int id, Guid draftId)
     {
-        if (_draftStore == null)
+        var ct = HttpContext?.RequestAborted ?? default;
+        var result = await _recipeImageService.AcceptDraftAsync(id, draftId, ct);
+
+        if (!result.Success)
         {
-            ErrorMessage = "Dịch vụ lưu trữ nháp chưa sẵn sàng.";
-            return RedirectToPage(new { id });
+            ErrorMessage = result.ErrorMessage;
         }
-
-        var draft = await _db.AiImageDrafts
-            .Include(d => d.RecipeStep)
-            .FirstOrDefaultAsync(d => d.Id == draftId && d.RecipeId == id);
-
-        if (draft == null || draft.State != AiDraftState.Generated)
+        else if (result.SuccessMessage != null)
         {
-            ErrorMessage = "Bản nháp AI không tồn tại hoặc đã được xử lý trước đó.";
-            return RedirectToPage(new { id });
-        }
-
-        if (draft.ExpiresUtc <= DateTime.UtcNow)
-        {
-            draft.State = AiDraftState.Expired;
-            _draftStore.DeleteDraft(draft.TemporaryFileName);
-            await _db.SaveChangesAsync();
-            ErrorMessage = "Ảnh nháp AI đã hết hạn. Vui lòng tạo lại ảnh mới.";
-            return RedirectToPage(new { id });
-        }
-
-        byte[] draftBytes;
-        try
-        {
-            draftBytes = await _draftStore.ReadDraftAsync(draft.TemporaryFileName);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Không thể đọc file ảnh nháp: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        ValidatedImageInfo info;
-        try
-        {
-            info = _validator.ValidateBytes(draftBytes, draft.TemporaryFileName);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Ảnh nháp không đạt chuẩn hợp lệ: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        StoredImage stored;
-        try
-        {
-            using var stream = new MemoryStream(draftBytes);
-            stored = await _imageStorage.UploadAsync(stream, info);
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = $"Tải ảnh lên máy chủ lưu trữ thất bại: {ex.Message}";
-            return RedirectToPage(new { id });
-        }
-
-        await using var tx = await _db.Database.BeginTransactionAsync();
-        try
-        {
-            var mediaAsset = new MediaAsset
-            {
-                StorageProvider = "Cloudinary",
-                ProviderPublicId = stored.ProviderPublicId,
-                DeliveryUrl = stored.DeliveryUrl,
-                OriginalFileName = $"ai-{draft.Id:N}.jpg",
-                MimeType = stored.MimeType,
-                ByteSize = stored.ByteSize,
-                SourceType = MediaSourceType.AiIllustration,
-                State = MediaAssetState.Active,
-                CreatedAtUtc = DateTime.UtcNow,
-                AiImageDraftId = draft.Id
-            };
-
-            _db.MediaAssets.Add(mediaAsset);
-
-            if (draft.TargetKind == AiDraftTargetKind.FinalProduct)
-            {
-                var recipe = await _db.Recipes.FindAsync(id);
-                if (recipe != null)
-                {
-                    recipe.FinalMediaAsset = mediaAsset;
-                    recipe.FinalImageAspectRatioPreset = draft.AspectRatioPreset;
-                }
-            }
-            else if (draft.RecipeStep != null)
-            {
-                var step = draft.RecipeStep;
-                step.MediaAsset = mediaAsset;
-                step.ImageAspectRatioPreset = draft.AspectRatioPreset;
-            }
-
-            draft.State = AiDraftState.Accepted;
-
-            await _db.SaveChangesAsync();
-            await tx.CommitAsync();
-
-            _draftStore.DeleteDraft(draft.TemporaryFileName);
-            SuccessMessage = draft.TargetKind == AiDraftTargetKind.FinalProduct
-                ? "Đã chấp nhận và gắn ảnh AI làm ảnh thành phẩm đại diện cho công thức."
-                : "Đã chấp nhận và gắn ảnh minh họa AI vào bước công thức thành công.";
-        }
-        catch
-        {
-            await tx.RollbackAsync();
-            try
-            {
-                await _imageStorage.DeleteAsync(stored.ProviderPublicId);
-            }
-            catch
-            {
-            }
-            throw;
+            SuccessMessage = result.SuccessMessage;
         }
 
         return RedirectToPage(new { id });
